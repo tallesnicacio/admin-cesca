@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { LogOut, Calendar, Settings, BarChart3, Menu, X, Users, ClipboardCheck, TrendingUp, AlertTriangle, DollarSign, GraduationCap, BookOpen, FileText, CreditCard, Wallet } from 'lucide-react';
+import { LogOut, Calendar, Settings, BarChart3, Menu, X, Users, ClipboardCheck, TrendingUp, AlertTriangle, DollarSign, GraduationCap, BookOpen, FileText, CreditCard, Wallet, Receipt } from 'lucide-react';
 import AgendamentoManager from './AgendamentoManager';
 import Configuracoes from './Configuracoes';
 import Reports from './Reports';
@@ -14,6 +14,7 @@ import CursoManager from './financeiro/CursoManager';
 import MatriculaManager from './financeiro/MatriculaManager';
 import MensalidadeManager from './financeiro/MensalidadeManager';
 import CaixaManager from './financeiro/CaixaManager';
+import DespesaManager from './financeiro/DespesaManager';
 import './Dashboard.css';
 
 function Dashboard({ session }) {
@@ -185,12 +186,20 @@ function Dashboard({ session }) {
                   <Wallet size={18} />
                   Caixas
                 </button>
+                <button
+                  className={financeiroSubTab === 'despesas' ? 'active' : ''}
+                  onClick={() => setFinanceiroSubTab('despesas')}
+                >
+                  <Receipt size={18} />
+                  Despesas
+                </button>
               </div>
               {financeiroSubTab === 'alunos' && <AlunoManager />}
               {financeiroSubTab === 'cursos' && <CursoManager />}
               {financeiroSubTab === 'matriculas' && <MatriculaManager />}
               {financeiroSubTab === 'mensalidades' && <MensalidadeManager />}
               {financeiroSubTab === 'caixas' && <CaixaManager />}
+              {financeiroSubTab === 'despesas' && <DespesaManager />}
             </>
           )}
 
