@@ -1,0 +1,183 @@
+.user-manager {
+  width: 100%;
+}
+
+/* Reutiliza estilos do AgendamentoManager */
+.users-table {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.users-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.users-table th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.users-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e1e4e8;
+  font-size: 14px;
+  color: #333;
+}
+
+.users-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.users-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Role badges */
+.role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role-badge.admin {
+  background: #ffd700;
+  color: #856404;
+}
+
+.role-badge.user {
+  background: #d4edda;
+  color: #155724;
+}
+
+/* User form */
+.user-form {
+  padding: 24px;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Cards para mobile */
+.user-card {
+  display: none;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .user-card {
+    display: block;
+  }
+
+  .user-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e1e4e8;
+  }
+
+  .user-card-title {
+    flex: 1;
+  }
+
+  .user-card-title h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: #333;
+    font-weight: 600;
+  }
+
+  .user-card-title p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+  }
+
+  .user-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .user-card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .user-card-field label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .user-card-field .value {
+    font-size: 14px;
+    color: #333;
+  }
+
+  .user-card-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid #e1e4e8;
+  }
+
+  .user-card-actions button {
+    flex: 1;
+  }
+
+  /* Esconder tabela no mobile */
+  .users-table table {
+    display: none;
+  }
+
+  .users-table {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  /* Ajustar modal */
+  .modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}

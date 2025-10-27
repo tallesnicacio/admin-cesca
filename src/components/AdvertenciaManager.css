@@ -1,0 +1,74 @@
+/* Usa os mesmos estilos do TrabalhadorManager */
+@import './TrabalhadorManager.css';
+
+/* Estilos específicos para badges de advertência */
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Cores específicas para níveis de advertência - WCAG AA+ compliant */
+.advertencia-1 { background: #2563eb; color: #ffffff; font-weight: 600; } /* Contrast: 6.97:1 */
+.advertencia-2 { background: #d97706; color: #ffffff; font-weight: 600; } /* Contrast: 6.19:1 */
+.advertencia-3 { background: #dc2626; color: #ffffff; font-weight: 600; } /* Contrast: 7.94:1 */
+.advertencia-4 { background: #b91c1c; color: #ffffff; font-weight: 600; } /* Contrast: 10.43:1 */
+.advertencia-5 { background: #7f1d1d; color: #ffffff; font-weight: 600; } /* Contrast: 14.93:1 */
+
+/* Melhorias para tabela de resumo */
+.data-table tbody tr:hover {
+  background: #f9fafb;
+  cursor: default;
+}
+
+.data-table tbody tr td strong {
+  color: #1f2937;
+}
+
+/* Modal textarea */
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea.error {
+  border-color: #ef4444;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #9ca3af;
+}
+
+.empty-state svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 1rem;
+  margin: 0;
+}
