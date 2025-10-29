@@ -1,5 +1,4 @@
 import React from 'react';
-import InputMask from 'react-input-mask';
 import { AlertCircle } from 'lucide-react';
 import './Input.css';
 
@@ -42,6 +41,25 @@ export const PhoneInput = ({
   required = false,
   ...props
 }) => {
+  const handleChange = (e) => {
+    let input = e.target.value.replace(/\D/g, '');
+    if (input.length > 11) input = input.slice(0, 11);
+
+    let formatted = '';
+    if (input.length > 0) {
+      formatted = '(' + input.slice(0, 2);
+      if (input.length >= 3) {
+        formatted += ') ' + input.slice(2, 7);
+      }
+      if (input.length >= 8) {
+        formatted += '-' + input.slice(7, 11);
+      }
+    }
+
+    e.target.value = formatted;
+    onChange(e);
+  };
+
   return (
     <div className="input-group">
       {label && (
@@ -51,10 +69,12 @@ export const PhoneInput = ({
           {required && <span className="required-mark">*</span>}
         </label>
       )}
-      <InputMask
-        mask="(99) 99999-9999"
+      <input
+        type="tel"
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
+        placeholder="(00) 00000-0000"
+        maxLength={15}
         className={`input-field ${error ? 'input-error' : ''}`}
         {...props}
       />

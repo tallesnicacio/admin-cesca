@@ -1,10 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Search, Plus, X, AlertTriangle, Calendar, FileText, Trash2, Edit2, User, Award } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from './index';
-import { ConfirmModal } from './Modal';
-import './AdvertenciaManager.css';
+import {
+  Card,
+  Row,
+  Col,
+  Button,
+  Input,
+  Select,
+  Table,
+  Modal,
+  Form,
+  DatePicker,
+  Space,
+  Typography,
+  Tag,
+  Empty,
+  Spin,
+  message
+} from 'antd';
+import {
+  WarningOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
+  TrophyOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 function AdvertenciaManager({ userProfile }) {
   const [advertencias, setAdvertencias] = useState([]);
@@ -15,21 +44,13 @@ function AdvertenciaManager({ userProfile }) {
   const [filterTipo, setFilterTipo] = useState('all');
   const [filterTrabalhador, setFilterTrabalhador] = useState('all');
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create');
   const [selectedAdvertencia, setSelectedAdvertencia] = useState(null);
-  const [formData, setFormData] = useState({
-    trabalhador_id: '',
-    tipo: '1º Verbal',
-    data_advertencia: new Date().toISOString().split('T')[0],
-    motivo: '',
-    observacoes: ''
-  });
-  const [formErrors, setFormErrors] = useState({});
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, advertenciaId: null });
   const [modalLoading, setModalLoading] = useState(false);
   const [resumo, setResumo] = useState([]);
   const [showResumo, setShowResumo] = useState(false);
-  const [selectedTrabalhadorResumo, setSelectedTrabalhadorResumo] = useState(null);
+  const [form] = Form.useForm();
 
   const tiposAdvertencia = ['1º Verbal', '2º Verbal', '3º Verbal', '4º Verbal', '5º Verbal'];
 
@@ -76,7 +97,7 @@ function AdvertenciaManager({ userProfile }) {
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      showToast.error('Erro ao carregar dados: ' + error.message);
+      message.error('Erro ao carregar dados: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -105,77 +126,46 @@ function AdvertenciaManager({ userProfile }) {
     setFilteredAdvertencias(filtered);
   };
 
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.trabalhador_id) {
-      errors.trabalhador_id = 'Selecione um trabalhador';
-    }
-    if (!formData.tipo) {
-      errors.tipo = 'Selecione o tipo de advertência';
-    }
-    if (!formData.data_advertencia) {
-      errors.data_advertencia = 'Informe a data da advertência';
-    }
-    if (!formData.motivo || formData.motivo.trim() === '') {
-      errors.motivo = 'Informe o motivo da advertência';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleOpenModal = (mode, advertencia = null) => {
     setModalMode(mode);
     setSelectedAdvertencia(advertencia);
 
     if (mode === 'edit' && advertencia) {
-      setFormData({
+      form.setFieldsValue({
         trabalhador_id: advertencia.trabalhador_id,
         tipo: advertencia.tipo,
-        data_advertencia: advertencia.data_advertencia,
+        data_advertencia: dayjs(advertencia.data_advertencia),
         motivo: advertencia.motivo || '',
         observacoes: advertencia.observacoes || ''
       });
     } else {
-      setFormData({
+      form.setFieldsValue({
         trabalhador_id: '',
         tipo: '1º Verbal',
-        data_advertencia: new Date().toISOString().split('T')[0],
+        data_advertencia: dayjs(),
         motivo: '',
         observacoes: ''
       });
     }
-    setFormErrors({});
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedAdvertencia(null);
-    setFormData({
-      trabalhador_id: '',
-      tipo: '1º Verbal',
-      data_advertencia: new Date().toISOString().split('T')[0],
-      motivo: '',
-      observacoes: ''
-    });
-    setFormErrors({});
+    form.resetFields();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      showToast.error('Por favor, corrija os erros no formulário');
-      return;
-    }
-
+  const handleSubmit = async (values) => {
     try {
       setModalLoading(true);
 
       const payload = {
-        ...formData,
+        trabalhador_id: values.trabalhador_id,
+        tipo: values.tipo,
+        data_advertencia: values.data_advertencia.format('YYYY-MM-DD'),
+        motivo: values.motivo,
+        observacoes: values.observacoes || '',
         aplicado_por: userProfile?.id
       };
 
@@ -185,7 +175,7 @@ function AdvertenciaManager({ userProfile }) {
           .insert([payload]);
 
         if (error) throw error;
-        showToast.success('Advertência registrada com sucesso!');
+        message.success('Advertência registrada com sucesso!');
       } else {
         const { error } = await supabase
           .from('advertencias')
@@ -193,14 +183,14 @@ function AdvertenciaManager({ userProfile }) {
           .eq('id', selectedAdvertencia.id);
 
         if (error) throw error;
-        showToast.success('Advertência atualizada com sucesso!');
+        message.success('Advertência atualizada com sucesso!');
       }
 
       handleCloseModal();
       loadData();
     } catch (error) {
       console.error('Erro ao salvar advertência:', error);
-      showToast.error('Erro ao salvar advertência: ' + error.message);
+      message.error('Erro ao salvar advertência: ' + error.message);
     } finally {
       setModalLoading(false);
     }
@@ -219,11 +209,11 @@ function AdvertenciaManager({ userProfile }) {
 
       if (error) throw error;
 
-      showToast.success('Advertência excluída com sucesso!');
+      message.success('Advertência excluída com sucesso!');
       loadData();
     } catch (error) {
       console.error('Erro ao excluir advertência:', error);
-      showToast.error('Erro ao excluir advertência: ' + error.message);
+      message.error('Erro ao excluir advertência: ' + error.message);
     } finally {
       setDeleteModal({ isOpen: false, advertenciaId: null });
     }
@@ -231,12 +221,12 @@ function AdvertenciaManager({ userProfile }) {
 
   const getTipoBadgeColor = (tipo) => {
     switch (tipo) {
-      case '1º Verbal': return '#3b82f6'; // blue
-      case '2º Verbal': return '#f59e0b'; // orange
-      case '3º Verbal': return '#ef4444'; // red
-      case '4º Verbal': return '#dc2626'; // dark red
-      case '5º Verbal': return '#991b1b'; // very dark red
-      default: return '#6b7280'; // gray
+      case '1º Verbal': return 'blue';
+      case '2º Verbal': return 'orange';
+      case '3º Verbal': return 'red';
+      case '4º Verbal': return 'volcano';
+      case '5º Verbal': return 'magenta';
+      default: return 'default';
     }
   };
 
@@ -259,412 +249,517 @@ function AdvertenciaManager({ userProfile }) {
 
   const stats = getStatsCards();
 
-  const exportToExcel = () => {
-    showToast.info('Exportação Excel em desenvolvimento...');
-  };
+  // Colunas para a tabela de histórico
+  const historicColumns = [
+    {
+      title: 'Nº',
+      dataIndex: 'trabalhador_numero',
+      key: 'trabalhador_numero',
+      width: 80,
+      render: (num) => num || '-'
+    },
+    {
+      title: 'Trabalhador',
+      dataIndex: 'trabalhador_nome',
+      key: 'trabalhador_nome',
+      render: (text) => <Text strong>{text}</Text>
+    },
+    {
+      title: 'Grupo',
+      dataIndex: 'grupo',
+      key: 'grupo',
+      width: 120,
+      render: (grupo) => (
+        <Tag color={grupo === 'Direção' ? 'purple' : 'green'}>
+          {grupo || '-'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Tipo',
+      dataIndex: 'tipo',
+      key: 'tipo',
+      width: 120,
+      render: (tipo) => (
+        <Tag color={getTipoBadgeColor(tipo)}>{tipo}</Tag>
+      )
+    },
+    {
+      title: 'Data',
+      dataIndex: 'data_advertencia',
+      key: 'data_advertencia',
+      width: 120,
+      render: (date) => formatDate(date)
+    },
+    {
+      title: 'Motivo',
+      dataIndex: 'motivo',
+      key: 'motivo',
+      ellipsis: true
+    },
+    {
+      title: 'Aplicado Por',
+      dataIndex: 'aplicado_por_nome',
+      key: 'aplicado_por_nome',
+      width: 150,
+      render: (nome) => nome || '-'
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 100,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenModal('edit', record)}
+          />
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          />
+        </Space>
+      )
+    }
+  ];
+
+  // Colunas para a tabela de resumo
+  const resumoColumns = [
+    {
+      title: 'Nº',
+      dataIndex: 'numero',
+      key: 'numero',
+      width: 80,
+      render: (num) => num || '-'
+    },
+    {
+      title: 'Nome',
+      dataIndex: 'nome_completo',
+      key: 'nome_completo',
+      render: (text) => <Text strong>{text}</Text>
+    },
+    {
+      title: 'Grupo',
+      dataIndex: 'grupo',
+      key: 'grupo',
+      width: 120,
+      render: (grupo) => (
+        <Tag color={grupo === 'Direção' ? 'purple' : 'green'}>
+          {grupo || '-'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => {
+        const statusConfig = {
+          ativo: { color: 'success', text: 'Ativo' },
+          afastado: { color: 'warning', text: 'Afastado' },
+          inativo: { color: 'default', text: 'Inativo' }
+        };
+        const config = statusConfig[status] || statusConfig.inativo;
+        return <Tag color={config.color}>{config.text}</Tag>;
+      }
+    },
+    {
+      title: '1º Verbal',
+      dataIndex: 'advertencias_1',
+      key: 'advertencias_1',
+      width: 90,
+      align: 'center',
+      render: (val) => val || 0
+    },
+    {
+      title: '2º Verbal',
+      dataIndex: 'advertencias_2',
+      key: 'advertencias_2',
+      width: 90,
+      align: 'center',
+      render: (val) => val || 0
+    },
+    {
+      title: '3º Verbal',
+      dataIndex: 'advertencias_3',
+      key: 'advertencias_3',
+      width: 90,
+      align: 'center',
+      render: (val) => val || 0
+    },
+    {
+      title: '4º Verbal',
+      dataIndex: 'advertencias_4',
+      key: 'advertencias_4',
+      width: 90,
+      align: 'center',
+      render: (val) => val || 0
+    },
+    {
+      title: '5º Verbal',
+      dataIndex: 'advertencias_5',
+      key: 'advertencias_5',
+      width: 90,
+      align: 'center',
+      render: (val) => val || 0
+    },
+    {
+      title: 'Total',
+      dataIndex: 'total_advertencias',
+      key: 'total_advertencias',
+      width: 80,
+      align: 'center',
+      render: (total) => (
+        <Text strong style={{ color: total >= 3 ? '#ff4d4f' : '#1890ff' }}>
+          {total}
+        </Text>
+      )
+    },
+    {
+      title: 'Última',
+      dataIndex: 'ultima_advertencia',
+      key: 'ultima_advertencia',
+      width: 120,
+      render: (date) => formatDate(date)
+    }
+  ];
 
   if (loading) {
     return (
-      <div className="trabalhador-manager">
-        <div className="loading">Carregando advertências...</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <Spin size="large" tip="Carregando advertências..." />
       </div>
     );
   }
 
   return (
-    <div className="trabalhador-manager">
-      <Toaster position="top-right" />
-
+    <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
       {/* Header */}
-      <div className="manager-header">
-        <div className="header-title">
-          <AlertTriangle size={32} />
-          <div>
-            <h1>Gerenciar Advertências</h1>
-            <p>Controle de advertências verbais aplicadas aos trabalhadores</p>
-          </div>
-        </div>
-        <button className="btn-primary" onClick={() => handleOpenModal('create')}>
-          <Plus size={20} />
-          Nova Advertência
-        </button>
-      </div>
+      <Card bordered={false} style={{ marginBottom: 24 }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space size="large">
+              <WarningOutlined style={{ fontSize: 32, color: '#faad14' }} />
+              <div>
+                <Title level={2} style={{ margin: 0 }}>Gerenciar Advertências</Title>
+                <Text type="secondary">Controle de advertências verbais aplicadas aos trabalhadores</Text>
+              </div>
+            </Space>
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => handleOpenModal('create')}
+            >
+              Nova Advertência
+            </Button>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Stats Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            <AlertTriangle size={24} />
-          </div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-label">Total de Advertências</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-            <User size={24} />
-          </div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.trabalhadores_com_advertencia}</div>
-            <div className="stat-label">Trabalhadores com Advertência</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
-            <Calendar size={24} />
-          </div>
-          <div className="stat-info">
-            <div className="stat-value">{stats.ultimas_30_dias}</div>
-            <div className="stat-label">Últimos 30 Dias</div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <WarningOutlined style={{ fontSize: 24, color: '#722ed1' }} />
+                <Text type="secondary">Total de Advertências</Text>
+              </Space>
+              <Title level={2} style={{ margin: 0 }}>{stats.total}</Title>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <UserOutlined style={{ fontSize: 24, color: '#eb2f96' }} />
+                <Text type="secondary">Trabalhadores com Advertência</Text>
+              </Space>
+              <Title level={2} style={{ margin: 0 }}>{stats.trabalhadores_com_advertencia}</Title>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <CalendarOutlined style={{ fontSize: 24, color: '#fa8c16' }} />
+                <Text type="secondary">Últimos 30 Dias</Text>
+              </Space>
+              <Title level={2} style={{ margin: 0 }}>{stats.ultimas_30_dias}</Title>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
 
       {/* Toggle Resumo */}
-      <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-        <button
-          className={showResumo ? "btn-secondary" : "btn-primary"}
+      <Card bordered={false} style={{ marginBottom: 24 }}>
+        <Button
+          type={showResumo ? 'default' : 'primary'}
+          icon={<TrophyOutlined />}
           onClick={() => setShowResumo(!showResumo)}
-          style={{ marginRight: '1rem' }}
+          size="large"
         >
-          <Award size={20} />
           {showResumo ? 'Ver Histórico' : 'Ver Resumo por Trabalhador'}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
       {showResumo ? (
         /* RESUMO POR TRABALHADOR */
-        <div className="table-container">
-          <div className="filters-bar">
-            <div className="search-box">
-              <Search size={20} />
-              <input
-                type="text"
-                placeholder="Buscar trabalhador..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+        <Card>
+          <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+            <Input
+              placeholder="Buscar trabalhador..."
+              prefix={<SearchOutlined />}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="large"
+              allowClear
+            />
+          </Space>
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Nº</th>
-                <th>Nome</th>
-                <th>Grupo</th>
-                <th>Status</th>
-                <th>1º Verbal</th>
-                <th>2º Verbal</th>
-                <th>3º Verbal</th>
-                <th>4º Verbal</th>
-                <th>5º Verbal</th>
-                <th>Total</th>
-                <th>Última</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resumo
-                .filter(r => r.total_advertencias > 0)
-                .filter(r => !searchTerm || r.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()))
-                .map((r) => (
-                <tr key={r.trabalhador_id}>
-                  <td>{r.numero || '-'}</td>
-                  <td><strong>{r.nome_completo}</strong></td>
-                  <td>
-                    <span className="badge" style={{
-                      background: r.grupo === 'Direção' ? '#667eea' : '#10b981',
-                      color: '#fff'
-                    }}>
-                      {r.grupo || '-'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge status-${r.status}`}>
-                      {r.status === 'ativo' ? 'Ativo' : r.status === 'afastado' ? 'Afastado' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="text-center">{r.advertencias_1 || 0}</td>
-                  <td className="text-center">{r.advertencias_2 || 0}</td>
-                  <td className="text-center">{r.advertencias_3 || 0}</td>
-                  <td className="text-center">{r.advertencias_4 || 0}</td>
-                  <td className="text-center">{r.advertencias_5 || 0}</td>
-                  <td className="text-center">
-                    <strong style={{ color: r.total_advertencias >= 3 ? '#ef4444' : '#667eea' }}>
-                      {r.total_advertencias}
-                    </strong>
-                  </td>
-                  <td>{formatDate(r.ultima_advertencia)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {resumo.filter(r => r.total_advertencias > 0).length === 0 && (
-            <div className="empty-state">
-              <AlertTriangle size={48} />
-              <p>Nenhuma advertência registrada</p>
-            </div>
-          )}
-        </div>
+          <Table
+            columns={resumoColumns}
+            dataSource={resumo
+              .filter(r => r.total_advertencias > 0)
+              .filter(r => !searchTerm || r.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()))
+            }
+            rowKey="trabalhador_id"
+            scroll={{ x: 1200 }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="Nenhuma advertência registrada"
+                />
+              )
+            }}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (total) => `Total: ${total} trabalhadores`
+            }}
+          />
+        </Card>
       ) : (
         /* HISTÓRICO DE ADVERTÊNCIAS */
-        <>
-          {/* Filters */}
-          <div className="filters-bar">
-            <div className="search-box">
-              <Search size={20} />
-              <input
-                type="text"
-                placeholder="Buscar por nome do trabalhador..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+        <Card>
+          <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }} size="large">
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={8}>
+                <Input
+                  placeholder="Buscar por nome do trabalhador..."
+                  prefix={<SearchOutlined />}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  size="large"
+                  allowClear
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  placeholder="Todos os Tipos"
+                  value={filterTipo}
+                  onChange={setFilterTipo}
+                  style={{ width: '100%' }}
+                  size="large"
+                >
+                  <Option value="all">Todos os Tipos</Option>
+                  {tiposAdvertencia.map(tipo => (
+                    <Option key={tipo} value={tipo}>{tipo}</Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  placeholder="Todos os Trabalhadores"
+                  value={filterTrabalhador}
+                  onChange={setFilterTrabalhador}
+                  style={{ width: '100%' }}
+                  size="large"
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  <Option value="all">Todos os Trabalhadores</Option>
+                  {trabalhadores.map(trab => (
+                    <Option key={trab.id} value={trab.id}>
+                      {trab.numero ? `${trab.numero} - ` : ''}{trab.nome_completo}
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+            </Row>
+          </Space>
 
-            <select
-              className="filter-select"
-              value={filterTipo}
-              onChange={(e) => setFilterTipo(e.target.value)}
-            >
-              <option value="all">Todos os Tipos</option>
-              {tiposAdvertencia.map(tipo => (
-                <option key={tipo} value={tipo}>{tipo}</option>
-              ))}
-            </select>
-
-            <select
-              className="filter-select"
-              value={filterTrabalhador}
-              onChange={(e) => setFilterTrabalhador(e.target.value)}
-            >
-              <option value="all">Todos os Trabalhadores</option>
-              {trabalhadores.map(trab => (
-                <option key={trab.id} value={trab.id}>
-                  {trab.numero ? `${trab.numero} - ` : ''}{trab.nome_completo}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Table */}
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nº</th>
-                  <th>Trabalhador</th>
-                  <th>Grupo</th>
-                  <th>Tipo</th>
-                  <th>Data</th>
-                  <th>Motivo</th>
-                  <th>Aplicado Por</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAdvertencias.map((adv) => (
-                  <tr key={adv.id}>
-                    <td>{adv.trabalhador_numero || '-'}</td>
-                    <td><strong>{adv.trabalhador_nome}</strong></td>
-                    <td>
-                      <span className="badge" style={{
-                        background: adv.grupo === 'Direção' ? '#667eea' : '#10b981',
-                        color: '#fff'
-                      }}>
-                        {adv.grupo || '-'}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className="badge"
-                        style={{ background: getTipoBadgeColor(adv.tipo), color: '#fff' }}
-                      >
-                        {adv.tipo}
-                      </span>
-                    </td>
-                    <td>{formatDate(adv.data_advertencia)}</td>
-                    <td>{adv.motivo}</td>
-                    <td>{adv.aplicado_por_nome || '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="btn-icon btn-edit"
-                          onClick={() => handleOpenModal('edit', adv)}
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          className="btn-icon btn-delete"
-                          onClick={() => handleDelete(adv.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredAdvertencias.length === 0 && (
-              <div className="empty-state">
-                <AlertTriangle size={48} />
-                <p>Nenhuma advertência encontrada</p>
-              </div>
-            )}
-          </div>
-        </>
+          <Table
+            columns={historicColumns}
+            dataSource={filteredAdvertencias}
+            rowKey="id"
+            scroll={{ x: 1200 }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="Nenhuma advertência encontrada"
+                />
+              )
+            }}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (total) => `Total: ${total} advertências`
+            }}
+          />
+        </Card>
       )}
 
       {/* Modal de Criar/Editar */}
-      {showModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                {modalMode === 'create' ? (
-                  <>
-                    <Plus size={24} />
-                    Nova Advertência
-                  </>
-                ) : (
-                  <>
-                    <Edit2 size={24} />
-                    Editar Advertência
-                  </>
-                )}
-              </h2>
-              <button className="modal-close" onClick={handleCloseModal}>
-                <X size={24} />
-              </button>
-            </div>
+      <Modal
+        title={
+          <Space>
+            {modalMode === 'create' ? <PlusOutlined /> : <EditOutlined />}
+            <span>{modalMode === 'create' ? 'Nova Advertência' : 'Editar Advertência'}</span>
+          </Space>
+        }
+        open={showModal}
+        onCancel={handleCloseModal}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{
+            tipo: '1º Verbal',
+            data_advertencia: dayjs()
+          }}
+        >
+          <Form.Item
+            label={
+              <Space>
+                <UserOutlined />
+                <span>Trabalhador</span>
+              </Space>
+            }
+            name="trabalhador_id"
+            rules={[{ required: true, message: 'Selecione um trabalhador' }]}
+          >
+            <Select
+              placeholder="Selecione um trabalhador"
+              size="large"
+              showSearch
+              optionFilterProp="children"
+              disabled={modalMode === 'edit'}
+            >
+              {trabalhadores.map(trab => (
+                <Option key={trab.id} value={trab.id}>
+                  {trab.numero ? `${trab.numero} - ` : ''}{trab.nome_completo}
+                  {trab.grupo ? ` (${trab.grupo})` : ''}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>
-                  <User size={18} />
-                  Trabalhador *
-                </label>
-                <select
-                  value={formData.trabalhador_id}
-                  onChange={(e) => setFormData({ ...formData, trabalhador_id: e.target.value })}
-                  className={formErrors.trabalhador_id ? 'error' : ''}
-                  disabled={modalMode === 'edit'}
-                >
-                  <option value="">Selecione um trabalhador</option>
-                  {trabalhadores.map(trab => (
-                    <option key={trab.id} value={trab.id}>
-                      {trab.numero ? `${trab.numero} - ` : ''}{trab.nome_completo}
-                      {trab.grupo ? ` (${trab.grupo})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {formErrors.trabalhador_id && (
-                  <span className="error-message">{formErrors.trabalhador_id}</span>
-                )}
-              </div>
+          <Form.Item
+            label={
+              <Space>
+                <WarningOutlined />
+                <span>Tipo de Advertência</span>
+              </Space>
+            }
+            name="tipo"
+            rules={[{ required: true, message: 'Selecione o tipo de advertência' }]}
+          >
+            <Select size="large">
+              {tiposAdvertencia.map(tipo => (
+                <Option key={tipo} value={tipo}>{tipo}</Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <AlertTriangle size={18} />
-                  Tipo de Advertência *
-                </label>
-                <select
-                  value={formData.tipo}
-                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                  className={formErrors.tipo ? 'error' : ''}
-                >
-                  {tiposAdvertencia.map(tipo => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-                {formErrors.tipo && (
-                  <span className="error-message">{formErrors.tipo}</span>
-                )}
-              </div>
+          <Form.Item
+            label={
+              <Space>
+                <CalendarOutlined />
+                <span>Data da Advertência</span>
+              </Space>
+            }
+            name="data_advertencia"
+            rules={[{ required: true, message: 'Informe a data da advertência' }]}
+          >
+            <DatePicker
+              style={{ width: '100%' }}
+              size="large"
+              format="DD/MM/YYYY"
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <Calendar size={18} />
-                  Data da Advertência *
-                </label>
-                <input
-                  type="date"
-                  value={formData.data_advertencia}
-                  onChange={(e) => setFormData({ ...formData, data_advertencia: e.target.value })}
-                  className={formErrors.data_advertencia ? 'error' : ''}
-                />
-                {formErrors.data_advertencia && (
-                  <span className="error-message">{formErrors.data_advertencia}</span>
-                )}
-              </div>
+          <Form.Item
+            label={
+              <Space>
+                <FileTextOutlined />
+                <span>Motivo</span>
+              </Space>
+            }
+            name="motivo"
+            rules={[{ required: true, message: 'Informe o motivo da advertência' }]}
+          >
+            <TextArea
+              rows={3}
+              placeholder="Descreva o motivo da advertência..."
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <FileText size={18} />
-                  Motivo *
-                </label>
-                <textarea
-                  value={formData.motivo}
-                  onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-                  placeholder="Descreva o motivo da advertência..."
-                  rows={3}
-                  className={formErrors.motivo ? 'error' : ''}
-                />
-                {formErrors.motivo && (
-                  <span className="error-message">{formErrors.motivo}</span>
-                )}
-              </div>
+          <Form.Item
+            label={
+              <Space>
+                <FileTextOutlined />
+                <span>Observações</span>
+              </Space>
+            }
+            name="observacoes"
+          >
+            <TextArea
+              rows={2}
+              placeholder="Observações adicionais (opcional)..."
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <FileText size={18} />
-                  Observações
-                </label>
-                <textarea
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                  placeholder="Observações adicionais (opcional)..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleCloseModal}
-                  disabled={modalLoading}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={modalLoading}
-                >
-                  {modalLoading ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <Form.Item>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={handleCloseModal} disabled={modalLoading}>
+                Cancelar
+              </Button>
+              <Button type="primary" htmlType="submit" loading={modalLoading}>
+                Salvar
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Modal de Confirmação de Exclusão */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
+      <Modal
         title="Excluir Advertência"
-        message="Tem certeza que deseja excluir esta advertência? Esta ação não pode ser desfeita."
-        onConfirm={confirmDelete}
+        open={deleteModal.isOpen}
+        onOk={confirmDelete}
         onCancel={() => setDeleteModal({ isOpen: false, advertenciaId: null })}
-      />
+        okText="Excluir"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true }}
+      >
+        <p>Tem certeza que deseja excluir esta advertência? Esta ação não pode ser desfeita.</p>
+      </Modal>
     </div>
   );
 }

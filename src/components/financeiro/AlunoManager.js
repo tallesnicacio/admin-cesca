@@ -1,18 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Search, Plus, Edit2, Trash2, X, User } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from '../index';
-import { ConfirmModal } from '../Modal';
-import { Input, PhoneInput } from '../Input';
-import { Button } from '../Button';
-import './AlunoManager.css';
+import {
+  UserOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined
+} from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Button,
+  Input,
+  Select,
+  Form,
+  Modal,
+  Space,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Tag,
+  message,
+  Spin,
+  Divider
+} from 'antd';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 function AlunoManager({ userProfile }) {
   // Estados principais
   const [alunos, setAlunos] = useState([]);
   const [filteredAlunos, setFilteredAlunos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Estados de filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,20 +43,15 @@ function AlunoManager({ userProfile }) {
   // Estados do modal
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // create | edit
-  const [formData, setFormData] = useState({
-    nome_completo: '',
-    cpf: '',
-    telefone: '',
-    email: '',
-    data_nascimento: '',
-    endereco: '',
-    status: 'ativo',
-    observacoes: ''
-  });
-  const [formErrors, setFormErrors] = useState({});
+  const [form] = Form.useForm();
+  const [editingId, setEditingId] = useState(null);
 
-  // Estado do modal de confirmação de exclusão
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, nome: '' });
+  // Detectar resize para mobile
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Carregar alunos ao montar componente
   useEffect(() => {
@@ -59,7 +76,7 @@ function AlunoManager({ userProfile }) {
       setAlunos(data || []);
     } catch (error) {
       console.error('Erro ao carregar alunos:', error);
-      showToast.error('Erro ao carregar alunos: ' + error.message);
+      message.error('Erro ao carregar alunos: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -88,59 +105,20 @@ function AlunoManager({ userProfile }) {
     setFilteredAlunos(filtered);
   };
 
-  // Validação do formulário
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.nome_completo?.trim()) {
-      errors.nome_completo = 'Nome completo é obrigatório';
-    }
-
-    if (formData.cpf) {
-      // Validação básica de CPF (apenas formato)
-      const cpfNumeros = formData.cpf.replace(/\D/g, '');
-      if (cpfNumeros.length !== 11) {
-        errors.cpf = 'CPF deve ter 11 dígitos';
-      }
-    }
-
-    if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      errors.email = 'Email inválido';
-    }
-
-    if (formData.telefone) {
-      const telefoneNumeros = formData.telefone.replace(/\D/g, '');
-      if (telefoneNumeros.length < 10) {
-        errors.telefone = 'Telefone deve ter pelo menos 10 dígitos';
-      }
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   // Abrir modal para criar novo aluno
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({
-      nome_completo: '',
-      cpf: '',
-      telefone: '',
-      email: '',
-      data_nascimento: '',
-      endereco: '',
-      status: 'ativo',
-      observacoes: ''
-    });
-    setFormErrors({});
+    setEditingId(null);
+    form.resetFields();
+    form.setFieldsValue({ status: 'ativo' });
     setShowModal(true);
   };
 
   // Abrir modal para editar aluno
   const openEditModal = (aluno) => {
     setModalMode('edit');
-    setFormData({
-      id: aluno.id,
+    setEditingId(aluno.id);
+    form.setFieldsValue({
       nome_completo: aluno.nome_completo || '',
       cpf: aluno.cpf || '',
       telefone: aluno.telefone || '',
@@ -150,45 +128,28 @@ function AlunoManager({ userProfile }) {
       status: aluno.status || 'ativo',
       observacoes: aluno.observacoes || ''
     });
-    setFormErrors({});
     setShowModal(true);
   };
 
   // Fechar modal
   const closeModal = () => {
     setShowModal(false);
-    setFormData({
-      nome_completo: '',
-      cpf: '',
-      telefone: '',
-      email: '',
-      data_nascimento: '',
-      endereco: '',
-      status: 'ativo',
-      observacoes: ''
-    });
-    setFormErrors({});
+    form.resetFields();
+    setEditingId(null);
   };
 
   // Submeter formulário (criar ou editar)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      showToast.error('Por favor, corrija os erros no formulário');
-      return;
-    }
-
+  const handleSubmit = async (values) => {
     try {
       const dataToSave = {
-        nome_completo: formData.nome_completo.trim(),
-        cpf: formData.cpf?.trim() || null,
-        telefone: formData.telefone?.trim() || null,
-        email: formData.email?.trim() || null,
-        data_nascimento: formData.data_nascimento || null,
-        endereco: formData.endereco?.trim() || null,
-        status: formData.status,
-        observacoes: formData.observacoes?.trim() || null
+        nome_completo: values.nome_completo.trim(),
+        cpf: values.cpf?.trim() || null,
+        telefone: values.telefone?.trim() || null,
+        email: values.email?.trim() || null,
+        data_nascimento: values.data_nascimento || null,
+        endereco: values.endereco?.trim() || null,
+        status: values.status,
+        observacoes: values.observacoes?.trim() || null
       };
 
       if (modalMode === 'create') {
@@ -197,15 +158,15 @@ function AlunoManager({ userProfile }) {
           .insert([dataToSave]);
 
         if (error) throw error;
-        showToast.success('Aluno cadastrado com sucesso!');
+        message.success('Aluno cadastrado com sucesso!');
       } else {
         const { error } = await supabase
           .from('alunos')
           .update(dataToSave)
-          .eq('id', formData.id);
+          .eq('id', editingId);
 
         if (error) throw error;
-        showToast.success('Aluno atualizado com sucesso!');
+        message.success('Aluno atualizado com sucesso!');
       }
 
       closeModal();
@@ -213,43 +174,42 @@ function AlunoManager({ userProfile }) {
     } catch (error) {
       console.error('Erro ao salvar aluno:', error);
       if (error.code === '23505') {
-        showToast.error('CPF já cadastrado no sistema');
+        message.error('CPF já cadastrado no sistema');
       } else {
-        showToast.error('Erro ao salvar aluno: ' + error.message);
+        message.error('Erro ao salvar aluno: ' + error.message);
       }
     }
-  };
-
-  // Abrir modal de confirmação de exclusão
-  const handleDeleteClick = (aluno) => {
-    setDeleteModal({
-      isOpen: true,
-      id: aluno.id,
-      nome: aluno.nome_completo
-    });
   };
 
   // Confirmar exclusão
-  const handleDeleteConfirm = async () => {
-    try {
-      const { error } = await supabase
-        .from('alunos')
-        .delete()
-        .eq('id', deleteModal.id);
+  const handleDelete = async (aluno) => {
+    Modal.confirm({
+      title: 'Excluir Aluno',
+      content: `Tem certeza que deseja excluir o aluno "${aluno.nome_completo}"? Esta ação não pode ser desfeita.`,
+      okText: 'Excluir',
+      okType: 'danger',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('alunos')
+            .delete()
+            .eq('id', aluno.id);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      showToast.success('Aluno excluído com sucesso!');
-      setDeleteModal({ isOpen: false, id: null, nome: '' });
-      loadAlunos();
-    } catch (error) {
-      console.error('Erro ao excluir aluno:', error);
-      if (error.code === '23503') {
-        showToast.error('Não é possível excluir este aluno pois existem matrículas vinculadas');
-      } else {
-        showToast.error('Erro ao excluir aluno: ' + error.message);
+          message.success('Aluno excluído com sucesso!');
+          loadAlunos();
+        } catch (error) {
+          console.error('Erro ao excluir aluno:', error);
+          if (error.code === '23503') {
+            message.error('Não é possível excluir este aluno pois existem matrículas vinculadas');
+          } else {
+            message.error('Erro ao excluir aluno: ' + error.message);
+          }
+        }
       }
-    }
+    });
   };
 
   // Formatar CPF para exibição
@@ -276,280 +236,355 @@ function AlunoManager({ userProfile }) {
     return date.toLocaleDateString('pt-BR');
   };
 
+  // Colunas da tabela
+  const columns = [
+    {
+      title: 'Nome Completo',
+      dataIndex: 'nome_completo',
+      key: 'nome_completo',
+      render: (text, record) => (
+        <div>
+          <Text strong>{text}</Text>
+          {record.observacoes && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.observacoes.substring(0, 30)}
+                {record.observacoes.length > 30 ? '...' : ''}
+              </Text>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      title: 'CPF',
+      dataIndex: 'cpf',
+      key: 'cpf',
+      render: (text) => formatCPF(text)
+    },
+    {
+      title: 'Telefone',
+      dataIndex: 'telefone',
+      key: 'telefone',
+      render: (text) => formatTelefone(text)
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Nascimento',
+      dataIndex: 'data_nascimento',
+      key: 'data_nascimento',
+      render: (text) => formatDate(text)
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const colors = {
+          ativo: 'green',
+          inativo: 'red',
+          trancado: 'orange'
+        };
+        return <Tag color={colors[status]}>{status}</Tag>;
+      }
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 120,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+            title="Editar"
+          />
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            title="Excluir"
+          />
+        </Space>
+      )
+    }
+  ];
+
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Carregando alunos...</p>
+      <div style={{ textAlign: 'center', padding: '60px 0' }}>
+        <Spin size="large" />
+        <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
+          Carregando alunos...
+        </Text>
       </div>
     );
   }
 
   return (
-    <div className="aluno-manager">
-      <Toaster position="top-right" />
-
+    <div style={{ padding: isMobile ? 16 : 24 }}>
       {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <User size={28} />
-          <div>
-            <h2>Gerenciar Alunos</h2>
-            <p className="header-subtitle">Cadastro de alunos dos cursos</p>
-          </div>
-        </div>
-        <Button onClick={openCreateModal} icon={<Plus size={20} />}>
-          Novo Aluno
-        </Button>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="start" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Space>
+            <UserOutlined style={{ fontSize: 28, color: '#3b82f6' }} />
+            <div>
+              <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+                Gerenciar Alunos
+              </Title>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Cadastro de alunos dos cursos
+              </Text>
+            </div>
+          </Space>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={openCreateModal}
+            style={{ borderRadius: 8 }}
+          >
+            Novo Aluno
+          </Button>
+        </Space>
       </div>
 
+      <Divider />
+
       {/* Filtros */}
-      <div className="filters-container">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
+      <Card style={{ marginBottom: 24, borderRadius: 16, border: '1px solid #f0f0f0' }}>
+        <Space wrap style={{ width: '100%' }}>
+          <Input
+            prefix={<SearchOutlined />}
             placeholder="Buscar por nome, CPF, telefone ou email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: isMobile ? '100%' : 350 }}
+            size="large"
+            allowClear
           />
-          {searchTerm && (
-            <button className="clear-search" onClick={() => setSearchTerm('')}>
-              <X size={16} />
-            </button>
-          )}
-        </div>
 
-        <select
-          className="filter-select"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="all">Todos os status</option>
-          <option value="ativo">Ativo</option>
-          <option value="inativo">Inativo</option>
-          <option value="trancado">Trancado</option>
-        </select>
-      </div>
+          <Select
+            placeholder="Status"
+            value={filterStatus}
+            onChange={setFilterStatus}
+            style={{ width: isMobile ? '100%' : 200 }}
+            size="large"
+          >
+            <Select.Option value="all">Todos os status</Select.Option>
+            <Select.Option value="ativo">Ativo</Select.Option>
+            <Select.Option value="inativo">Inativo</Select.Option>
+            <Select.Option value="trancado">Trancado</Select.Option>
+          </Select>
+        </Space>
+      </Card>
 
       {/* Estatísticas */}
-      <div className="stats-bar">
-        <div className="stat-item">
-          <span className="stat-value">{alunos.length}</span>
-          <span className="stat-label">Total</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">
-            {alunos.filter(a => a.status === 'ativo').length}
-          </span>
-          <span className="stat-label">Ativos</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">
-            {alunos.filter(a => a.status === 'inativo').length}
-          </span>
-          <span className="stat-label">Inativos</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">
-            {alunos.filter(a => a.status === 'trancado').length}
-          </span>
-          <span className="stat-label">Trancados</span>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+            <Statistic
+              title="Total"
+              value={alunos.length}
+              valueStyle={{ color: '#3b82f6' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+            <Statistic
+              title="Ativos"
+              value={alunos.filter(a => a.status === 'ativo').length}
+              valueStyle={{ color: '#10b981' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+            <Statistic
+              title="Inativos"
+              value={alunos.filter(a => a.status === 'inativo').length}
+              valueStyle={{ color: '#ef4444' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+            <Statistic
+              title="Trancados"
+              value={alunos.filter(a => a.status === 'trancado').length}
+              valueStyle={{ color: '#f59e0b' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Tabela de Alunos */}
-      <div className="table-container">
+      <Card style={{ borderRadius: 16, border: '1px solid #f0f0f0' }}>
         {filteredAlunos.length === 0 ? (
-          <div className="empty-state">
-            <User size={64} color="#ccc" />
-            <p>Nenhum aluno encontrado</p>
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <UserOutlined style={{ fontSize: 64, color: '#d1d5db' }} />
+            <Title level={4} type="secondary">Nenhum aluno encontrado</Title>
             {searchTerm && (
-              <button className="btn-link" onClick={() => setSearchTerm('')}>
+              <Button type="link" onClick={() => setSearchTerm('')}>
                 Limpar filtros
-              </button>
+              </Button>
             )}
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Nome Completo</th>
-                <th>CPF</th>
-                <th>Telefone</th>
-                <th>Email</th>
-                <th>Nascimento</th>
-                <th>Status</th>
-                <th className="actions-column">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAlunos.map((aluno) => (
-                <tr key={aluno.id}>
-                  <td>
-                    <strong>{aluno.nome_completo}</strong>
-                    {aluno.observacoes && (
-                      <small className="observacao-hint" title={aluno.observacoes}>
-                        📋 {aluno.observacoes.substring(0, 30)}
-                        {aluno.observacoes.length > 30 ? '...' : ''}
-                      </small>
-                    )}
-                  </td>
-                  <td>{formatCPF(aluno.cpf)}</td>
-                  <td>{formatTelefone(aluno.telefone)}</td>
-                  <td>{aluno.email || '-'}</td>
-                  <td>{formatDate(aluno.data_nascimento)}</td>
-                  <td>
-                    <span className={`status-badge status-${aluno.status}`}>
-                      {aluno.status}
-                    </span>
-                  </td>
-                  <td className="actions-column">
-                    <div className="action-buttons">
-                      <button
-                        className="btn-icon"
-                        onClick={() => openEditModal(aluno)}
-                        title="Editar"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        className="btn-icon danger"
-                        onClick={() => handleDeleteClick(aluno)}
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            columns={columns}
+            dataSource={filteredAlunos}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total de ${total} alunos`
+            }}
+            scroll={{ x: 'max-content' }}
+          />
         )}
-      </div>
+      </Card>
 
       {/* Modal de Criar/Editar */}
-      {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{modalMode === 'create' ? 'Novo Aluno' : 'Editar Aluno'}</h3>
-              <button className="modal-close" onClick={closeModal}>
-                <X size={24} />
-              </button>
-            </div>
+      <Modal
+        title={modalMode === 'create' ? 'Novo Aluno' : 'Editar Aluno'}
+        open={showModal}
+        onCancel={closeModal}
+        footer={null}
+        width={700}
+        style={{ top: 20 }}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ marginTop: 24 }}
+        >
+          <Form.Item
+            name="nome_completo"
+            label="Nome Completo"
+            rules={[{ required: true, message: 'Nome completo é obrigatório' }]}
+          >
+            <Input size="large" placeholder="Nome completo do aluno" />
+          </Form.Item>
 
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <Input
-                    label="Nome Completo"
-                    value={formData.nome_completo}
-                    onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
-                    error={formErrors.nome_completo}
-                    required
-                    placeholder="Nome completo do aluno"
-                  />
-                </div>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="cpf"
+                label="CPF"
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const cpfNumeros = value.replace(/\D/g, '');
+                      if (cpfNumeros.length !== 11) {
+                        return Promise.reject('CPF deve ter 11 dígitos');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+              >
+                <Input size="large" placeholder="000.000.000-00" maxLength={14} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="data_nascimento"
+                label="Data de Nascimento"
+              >
+                <Input type="date" size="large" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-                <div className="form-row">
-                  <Input
-                    label="CPF"
-                    value={formData.cpf}
-                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                    error={formErrors.cpf}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                  />
-                  <Input
-                    label="Data de Nascimento"
-                    type="date"
-                    value={formData.data_nascimento}
-                    onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-                  />
-                </div>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="telefone"
+                label="Telefone"
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const telefoneNumeros = value.replace(/\D/g, '');
+                      if (telefoneNumeros.length < 10) {
+                        return Promise.reject('Telefone deve ter pelo menos 10 dígitos');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+              >
+                <Input size="large" placeholder="(00) 00000-0000" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[
+                  {
+                    type: 'email',
+                    message: 'Email inválido'
+                  }
+                ]}
+              >
+                <Input size="large" placeholder="email@exemplo.com" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-                <div className="form-row">
-                  <PhoneInput
-                    label="Telefone"
-                    value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                    error={formErrors.telefone}
-                    placeholder="(00) 00000-0000"
-                  />
-                  <Input
-                    label="Email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    error={formErrors.email}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
+          <Form.Item
+            name="endereco"
+            label="Endereço"
+          >
+            <Input size="large" placeholder="Rua, número, bairro, cidade" />
+          </Form.Item>
 
-                <div className="form-row">
-                  <Input
-                    label="Endereço"
-                    value={formData.endereco}
-                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                    placeholder="Rua, número, bairro, cidade"
-                  />
-                </div>
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true }]}
+          >
+            <Select size="large">
+              <Select.Option value="ativo">Ativo</Select.Option>
+              <Select.Option value="inativo">Inativo</Select.Option>
+              <Select.Option value="trancado">Trancado</Select.Option>
+            </Select>
+          </Form.Item>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Status</label>
-                    <select
-                      className="form-select"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    >
-                      <option value="ativo">Ativo</option>
-                      <option value="inativo">Inativo</option>
-                      <option value="trancado">Trancado</option>
-                    </select>
-                  </div>
-                </div>
+          <Form.Item
+            name="observacoes"
+            label="Observações"
+          >
+            <TextArea
+              rows={3}
+              placeholder="Informações adicionais sobre o aluno"
+            />
+          </Form.Item>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Observações</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.observacoes}
-                      onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                      rows={3}
-                      placeholder="Informações adicionais sobre o aluno"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <Button type="button" variant="secondary" onClick={closeModal}>
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  {modalMode === 'create' ? 'Cadastrar' : 'Salvar Alterações'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de Exclusão */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, id: null, nome: '' })}
-        onConfirm={handleDeleteConfirm}
-        title="Excluir Aluno"
-        message={`Tem certeza que deseja excluir o aluno "${deleteModal.nome}"? Esta ação não pode ser desfeita.`}
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        type="danger"
-      />
+          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={closeModal} size="large">
+                Cancelar
+              </Button>
+              <Button type="primary" htmlType="submit" size="large">
+                {modalMode === 'create' ? 'Cadastrar' : 'Salvar Alterações'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

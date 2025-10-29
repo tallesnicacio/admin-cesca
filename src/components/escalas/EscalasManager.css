@@ -1,0 +1,192 @@
+/* ===================================
+   ESCALAS MANAGER - CONTAINER
+   =================================== */
+
+.escalas-manager {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+/* Header */
+.escalas-header {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.escalas-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.escalas-title-icon {
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.escalas-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.escalas-subtitle {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Tabs Navigation */
+.escalas-tabs {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  margin-bottom: 2rem;
+  padding: 0;
+}
+
+.escalas-tab {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  position: relative;
+}
+
+.escalas-tab:first-child {
+  border-top-left-radius: 12px;
+}
+
+.escalas-tab:last-child {
+  border-top-right-radius: 12px;
+}
+
+.escalas-tab:hover {
+  background: #f9fafb;
+  color: var(--tab-color, #667eea);
+}
+
+.escalas-tab.active {
+  color: var(--tab-color, #667eea);
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.escalas-tab svg {
+  flex-shrink: 0;
+}
+
+/* Tab Content */
+.escalas-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 500px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .escalas-manager {
+    padding: 1rem;
+  }
+
+  .escalas-header {
+    padding: 1.5rem;
+  }
+
+  .escalas-title {
+    font-size: 1.5rem;
+  }
+
+  .escalas-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .escalas-tabs {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .escalas-tab {
+    min-width: 140px;
+    padding: 0.875rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .escalas-manager {
+    padding: 0.5rem;
+  }
+
+  .escalas-header {
+    padding: 1rem;
+  }
+
+  .escalas-title-section {
+    gap: 1rem;
+  }
+
+  .escalas-title-icon {
+    display: none;
+  }
+
+  .escalas-title {
+    font-size: 1.25rem;
+  }
+
+  .escalas-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .escalas-tab {
+    min-width: 120px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .escalas-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Scrollbar styling para tabs */
+.escalas-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.escalas-tabs::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.escalas-tabs::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.escalas-tabs::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

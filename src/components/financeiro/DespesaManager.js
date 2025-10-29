@@ -1,27 +1,48 @@
-// DespesaManager.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { showToast } from '../Toast';
 import {
-  FileText,
-  Search,
-  X,
-  Plus,
-  Edit2,
-  Trash2,
-  CheckCircle,
-  AlertCircle,
+  FileTextOutlined,
+  SearchOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
+  UploadOutlined,
+  DownloadOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Button,
+  Input,
+  Select,
+  Form,
+  Modal,
+  Space,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Tag,
+  message,
+  Spin,
+  Divider,
   Upload,
-  Download,
-  Eye,
-  Calendar,
-  DollarSign
-} from 'lucide-react';
-import './DespesaManager.css';
+  DatePicker,
+  InputNumber
+} from 'antd';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const DespesaManager = () => {
   const [despesas, setDespesas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [categoriaFilter, setCategoriaFilter] = useState('todas');
@@ -32,18 +53,8 @@ const DespesaManager = () => {
   const [editingDespesa, setEditingDespesa] = useState(null);
   const [selectedDespesa, setSelectedDespesa] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [formData, setFormData] = useState({
-    descricao: '',
-    categoria: 'outras',
-    valor: '',
-    data_vencimento: '',
-    fornecedor: '',
-    observacoes: ''
-  });
-  const [paymentData, setPaymentData] = useState({
-    data_pagamento: new Date().toISOString().split('T')[0],
-    forma_pagamento: 'dinheiro'
-  });
+  const [form] = Form.useForm();
+  const [paymentForm] = Form.useForm();
   const [selectedFile, setSelectedFile] = useState(null);
   const [stats, setStats] = useState({
     totalAPagar: 0,
@@ -63,6 +74,13 @@ const DespesaManager = () => {
     { value: 'aluguel', label: 'Aluguel' },
     { value: 'outras', label: 'Outras' }
   ];
+
+  // Detectar resize para mobile
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Carregar despesas
   const fetchDespesas = useCallback(async () => {
@@ -126,7 +144,7 @@ const DespesaManager = () => {
       calculateStats(filteredData);
     } catch (error) {
       console.error('Erro ao carregar despesas:', error);
-      showToast.error('Erro ao carregar despesas');
+      message.error('Erro ao carregar despesas');
     } finally {
       setLoading(false);
     }
@@ -168,34 +186,16 @@ const DespesaManager = () => {
   };
 
   // Criar/Editar despesa
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleSubmit = async (values) => {
     try {
-      const valor = parseFloat(formData.valor);
-
-      if (isNaN(valor) || valor <= 0) {
-        showToast.error('Valor deve ser maior que zero');
-        return;
-      }
-
-      if (!formData.descricao?.trim()) {
-        showToast.error('Descrição é obrigatória');
-        return;
-      }
-
-      if (!formData.data_vencimento) {
-        showToast.error('Data de vencimento é obrigatória');
-        return;
-      }
-
       const dataToSave = {
-        descricao: formData.descricao.trim(),
-        categoria: formData.categoria,
-        valor: valor,
-        data_vencimento: formData.data_vencimento,
-        fornecedor: formData.fornecedor?.trim() || null,
-        observacoes: formData.observacoes?.trim() || null,
+        descricao: values.descricao.trim(),
+        categoria: values.categoria,
+        valor: parseFloat(values.valor),
+        data_emissao: values.data_emissao || new Date().toISOString().split('T')[0],
+        data_vencimento: values.data_vencimento.format('YYYY-MM-DD'),
+        fornecedor: values.fornecedor?.trim() || null,
+        observacoes: values.observacoes?.trim() || null,
         status: 'a_pagar'
       };
 
@@ -209,7 +209,7 @@ const DespesaManager = () => {
 
         if (error) throw error;
         despesaId = editingDespesa.id;
-        showToast.success('Despesa atualizada com sucesso!');
+        message.success('Despesa atualizada com sucesso!');
       } else {
         const { data, error } = await supabase
           .from('despesas')
@@ -219,7 +219,7 @@ const DespesaManager = () => {
 
         if (error) throw error;
         despesaId = data.id;
-        showToast.success('Despesa cadastrada com sucesso!');
+        message.success('Despesa cadastrada com sucesso!');
       }
 
       // Upload de comprovante se houver
@@ -229,19 +229,12 @@ const DespesaManager = () => {
 
       setShowModal(false);
       setEditingDespesa(null);
-      setFormData({
-        descricao: '',
-        categoria: 'outras',
-        valor: '',
-        data_vencimento: '',
-        fornecedor: '',
-        observacoes: ''
-      });
+      form.resetFields();
       setSelectedFile(null);
       fetchDespesas();
     } catch (error) {
       console.error('Erro ao salvar despesa:', error);
-      showToast.error('Erro ao salvar despesa');
+      message.error('Erro ao salvar despesa');
     }
   };
 
@@ -270,10 +263,10 @@ const DespesaManager = () => {
 
       if (updateError) throw updateError;
 
-      showToast.success('Comprovante enviado com sucesso!');
+      message.success('Comprovante enviado com sucesso!');
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      showToast.error('Erro ao enviar comprovante');
+      message.error('Erro ao enviar comprovante');
     } finally {
       setUploading(false);
     }
@@ -299,83 +292,86 @@ const DespesaManager = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showToast.success('Download iniciado!');
+      message.success('Download iniciado!');
     } catch (error) {
       console.error('Erro ao baixar comprovante:', error);
-      showToast.error('Erro ao baixar comprovante');
+      message.error('Erro ao baixar comprovante');
     }
   };
 
   // Marcar como pago
-  const handleMarkAsPaid = async (e) => {
-    e.preventDefault();
-
+  const handleMarkAsPaid = async (values) => {
     if (!selectedDespesa) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from('despesas')
         .update({
           status: 'pago',
-          data_pagamento: paymentData.data_pagamento,
-          forma_pagamento: paymentData.forma_pagamento,
+          data_pagamento: values.data_pagamento.format('YYYY-MM-DD'),
+          forma_pagamento: values.forma_pagamento,
+          pago_por: user?.id || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedDespesa.id);
 
       if (error) throw error;
 
-      showToast.success('Despesa marcada como paga!');
+      message.success('Despesa marcada como paga!');
       setShowPaymentModal(false);
       setSelectedDespesa(null);
-      setPaymentData({
-        data_pagamento: new Date().toISOString().split('T')[0],
-        forma_pagamento: 'dinheiro'
-      });
+      paymentForm.resetFields();
       fetchDespesas();
     } catch (error) {
       console.error('Erro ao marcar como pago:', error);
-      showToast.error('Erro ao marcar como pago');
+      message.error('Erro ao marcar como pago');
     }
   };
 
   // Deletar despesa
   const handleDelete = async (despesa) => {
-    if (!window.confirm(`Deseja realmente excluir a despesa "${despesa.descricao}"?`)) {
-      return;
-    }
+    Modal.confirm({
+      title: 'Excluir Despesa',
+      content: `Deseja realmente excluir a despesa "${despesa.descricao}"?`,
+      okText: 'Excluir',
+      okType: 'danger',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          // Deletar comprovante se existir
+          if (despesa.comprovante_url) {
+            await supabase.storage
+              .from('despesas')
+              .remove([despesa.comprovante_url]);
+          }
 
-    try {
-      // Deletar comprovante se existir
-      if (despesa.comprovante_url) {
-        await supabase.storage
-          .from('despesas')
-          .remove([despesa.comprovante_url]);
+          const { error } = await supabase
+            .from('despesas')
+            .delete()
+            .eq('id', despesa.id);
+
+          if (error) throw error;
+
+          message.success('Despesa excluída com sucesso!');
+          fetchDespesas();
+        } catch (error) {
+          console.error('Erro ao excluir despesa:', error);
+          message.error('Erro ao excluir despesa');
+        }
       }
-
-      const { error } = await supabase
-        .from('despesas')
-        .delete()
-        .eq('id', despesa.id);
-
-      if (error) throw error;
-
-      showToast.success('Despesa excluída com sucesso!');
-      fetchDespesas();
-    } catch (error) {
-      console.error('Erro ao excluir despesa:', error);
-      showToast.error('Erro ao excluir despesa');
-    }
+    });
   };
 
   // Abrir modal de edição
   const handleEdit = (despesa) => {
     setEditingDespesa(despesa);
-    setFormData({
+    form.setFieldsValue({
       descricao: despesa.descricao,
       categoria: despesa.categoria,
-      valor: despesa.valor.toString(),
-      data_vencimento: despesa.data_vencimento,
+      valor: despesa.valor,
+      data_vencimento: dayjs(despesa.data_vencimento),
       fornecedor: despesa.fornecedor || '',
       observacoes: despesa.observacoes || ''
     });
@@ -409,19 +405,18 @@ const DespesaManager = () => {
     hoje.setHours(0, 0, 0, 0);
     const vencimento = new Date(despesa.data_vencimento);
 
-    // Detectar se está vencida
     if (despesa.status === 'a_pagar' && vencimento < hoje) {
-      return <span className="status-badge status-vencido">Vencida</span>;
+      return <Tag color="error" icon={<WarningOutlined />}>Vencida</Tag>;
     }
 
     const statusMap = {
-      a_pagar: { label: 'A Pagar', class: 'status-a-pagar' },
-      pago: { label: 'Pago', class: 'status-pago' },
-      vencido: { label: 'Vencida', class: 'status-vencido' }
+      a_pagar: { label: 'A Pagar', color: 'warning', icon: <ClockCircleOutlined /> },
+      pago: { label: 'Pago', color: 'success', icon: <CheckCircleOutlined /> },
+      vencido: { label: 'Vencida', color: 'error', icon: <WarningOutlined /> }
     };
 
     const statusInfo = statusMap[despesa.status] || statusMap.a_pagar;
-    return <span className={`status-badge ${statusInfo.class}`}>{statusInfo.label}</span>;
+    return <Tag color={statusInfo.color} icon={statusInfo.icon}>{statusInfo.label}</Tag>;
   };
 
   // Obter label do mês
@@ -433,432 +428,491 @@ const DespesaManager = () => {
     return meses[mes - 1] || mes;
   };
 
-  return (
-    <div className="despesa-manager">
-      {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <FileText size={32} />
-          <div>
-            <h2>Gestão de Despesas</h2>
-            <p className="header-subtitle">
-              Controle de contas e comprovantes
-            </p>
-          </div>
+  // Colunas da tabela
+  const columns = [
+    {
+      title: 'Descrição',
+      dataIndex: 'descricao',
+      key: 'descricao',
+      render: (text, record) => (
+        <div>
+          <Text strong>{text}</Text>
+          {record.observacoes && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>{record.observacoes}</Text>
+            </div>
+          )}
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setEditingDespesa(null);
-            setFormData({
-              descricao: '',
-              categoria: 'outras',
-              valor: '',
-              data_vencimento: '',
-              fornecedor: '',
-              observacoes: ''
-            });
-            setSelectedFile(null);
-            setShowModal(true);
-          }}
-        >
-          <Plus size={20} />
-          Nova Despesa
-        </button>
+      )
+    },
+    {
+      title: 'Categoria',
+      dataIndex: 'categoria',
+      key: 'categoria',
+      render: (text) => getCategoriaLabel(text)
+    },
+    {
+      title: 'Fornecedor',
+      dataIndex: 'fornecedor',
+      key: 'fornecedor',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Vencimento',
+      dataIndex: 'data_vencimento',
+      key: 'data_vencimento',
+      render: (text) => formatDate(text)
+    },
+    {
+      title: 'Valor',
+      dataIndex: 'valor',
+      key: 'valor',
+      render: (valor) => <Text strong>{formatCurrency(valor)}</Text>
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, record) => getStatusBadge(record)
+    },
+    {
+      title: 'Comprovante',
+      key: 'comprovante',
+      render: (_, record) => (
+        record.comprovante_url ? (
+          <Button
+            type="link"
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownloadComprovante(record)}
+          />
+        ) : <Text type="secondary">-</Text>
+      )
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          {record.status !== 'pago' && (
+            <Button
+              type="text"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => {
+                setSelectedDespesa(record);
+                paymentForm.setFieldsValue({
+                  data_pagamento: dayjs(),
+                  forma_pagamento: 'dinheiro'
+                });
+                setShowPaymentModal(true);
+              }}
+              title="Marcar como Pago"
+            />
+          )}
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            title="Editar"
+          />
+          <Button
+            type="text"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            title="Excluir"
+          />
+        </Space>
+      )
+    }
+  ];
+
+  return (
+    <div style={{ padding: isMobile ? 16 : 24 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="start" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Space>
+            <FileTextOutlined style={{ fontSize: 28, color: '#3b82f6' }} />
+            <div>
+              <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+                Gestão de Despesas
+              </Title>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Controle de contas e comprovantes
+              </Text>
+            </div>
+          </Space>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingDespesa(null);
+              form.resetFields();
+              form.setFieldsValue({ categoria: 'outras' });
+              setSelectedFile(null);
+              setShowModal(true);
+            }}
+            style={{ borderRadius: 8 }}
+          >
+            Nova Despesa
+          </Button>
+        </Space>
       </div>
 
+      <Divider />
+
       {/* Filtros */}
-      <div className="filters-container">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
+      <Card style={{ marginBottom: 24, borderRadius: 16, border: '1px solid #f0f0f0' }}>
+        <Space wrap style={{ width: '100%' }}>
+          <Input
+            prefix={<SearchOutlined />}
             placeholder="Buscar por descrição ou fornecedor..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: isMobile ? '100%' : 300 }}
+            size="large"
+            allowClear
           />
-          {searchTerm && (
-            <button className="clear-search" onClick={() => setSearchTerm('')}>
-              <X size={18} />
-            </button>
-          )}
-        </div>
 
-        <select
-          className="filter-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="todos">Todos os Status</option>
-          <option value="a_pagar">A Pagar</option>
-          <option value="pago">Pago</option>
-          <option value="vencido">Vencida</option>
-        </select>
+          <Select
+            placeholder="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: isMobile ? '100%' : 150 }}
+            size="large"
+          >
+            <Select.Option value="todos">Todos os Status</Select.Option>
+            <Select.Option value="a_pagar">A Pagar</Select.Option>
+            <Select.Option value="pago">Pago</Select.Option>
+            <Select.Option value="vencido">Vencida</Select.Option>
+          </Select>
 
-        <select
-          className="filter-select"
-          value={categoriaFilter}
-          onChange={(e) => setCategoriaFilter(e.target.value)}
-        >
-          <option value="todas">Todas as Categorias</option>
-          {categorias.map(cat => (
-            <option key={cat.value} value={cat.value}>{cat.label}</option>
-          ))}
-        </select>
+          <Select
+            placeholder="Categoria"
+            value={categoriaFilter}
+            onChange={setCategoriaFilter}
+            style={{ width: isMobile ? '100%' : 180 }}
+            size="large"
+          >
+            <Select.Option value="todas">Todas as Categorias</Select.Option>
+            {categorias.map(cat => (
+              <Select.Option key={cat.value} value={cat.value}>{cat.label}</Select.Option>
+            ))}
+          </Select>
 
-        <select
-          className="filter-select"
-          value={mesFilter}
-          onChange={(e) => setMesFilter(e.target.value)}
-        >
-          <option value="">Todos os Meses</option>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(mes => (
-            <option key={mes} value={mes}>{getMesLabel(mes)}</option>
-          ))}
-        </select>
+          <Select
+            placeholder="Mês"
+            value={mesFilter}
+            onChange={setMesFilter}
+            style={{ width: isMobile ? '100%' : 130 }}
+            size="large"
+            allowClear
+          >
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(mes => (
+              <Select.Option key={mes} value={mes}>{getMesLabel(mes)}</Select.Option>
+            ))}
+          </Select>
 
-        <select
-          className="filter-select"
-          value={anoFilter}
-          onChange={(e) => setAnoFilter(e.target.value)}
-        >
-          <option value="">Todos os Anos</option>
-          {[2024, 2025, 2026].map(ano => (
-            <option key={ano} value={ano}>{ano}</option>
-          ))}
-        </select>
-      </div>
+          <Select
+            placeholder="Ano"
+            value={anoFilter}
+            onChange={setAnoFilter}
+            style={{ width: isMobile ? '100%' : 100 }}
+            size="large"
+            allowClear
+          >
+            {[2024, 2025, 2026].map(ano => (
+              <Select.Option key={ano} value={ano}>{ano}</Select.Option>
+            ))}
+          </Select>
+        </Space>
+      </Card>
 
       {/* Estatísticas */}
-      <div className="stats-bar">
-        <div className="stat-item stat-a-pagar">
-          <AlertCircle size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalAPagar)}</div>
-          <div className="stat-label">A Pagar</div>
-        </div>
-
-        <div className="stat-item stat-pago">
-          <CheckCircle size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalPago)}</div>
-          <div className="stat-label">Pago</div>
-        </div>
-
-        <div className="stat-item stat-vencido">
-          <Calendar size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalVencido)}</div>
-          <div className="stat-label">Vencidas</div>
-        </div>
-
-        <div className="stat-item">
-          <DollarSign size={24} />
-          <div className="stat-value">{stats.quantidade}</div>
-          <div className="stat-label">Total Despesas</div>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #f59e0b' }}>
+            <Statistic
+              title="A Pagar"
+              value={stats.totalAPagar}
+              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#f59e0b' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #10b981' }}>
+            <Statistic
+              title="Pago"
+              value={stats.totalPago}
+              prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#10b981' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #ef4444' }}>
+            <Statistic
+              title="Vencidas"
+              value={stats.totalVencido}
+              prefix={<WarningOutlined style={{ color: '#ef4444' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#ef4444' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #3b82f6' }}>
+            <Statistic
+              title="Total Despesas"
+              value={stats.quantidade}
+              prefix={<DollarOutlined style={{ color: '#3b82f6' }} />}
+              valueStyle={{ color: '#3b82f6' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Tabela */}
       {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>Carregando despesas...</p>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Spin size="large" />
+          <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>Carregando despesas...</Text>
         </div>
       ) : despesas.length === 0 ? (
-        <div className="empty-state">
-          <FileText size={64} />
-          <p>Nenhuma despesa encontrada</p>
-          <button className="btn-link" onClick={() => setShowModal(true)}>
+        <Card style={{ borderRadius: 16, border: '1px solid #f0f0f0', textAlign: 'center', padding: '60px 20px' }}>
+          <FileTextOutlined style={{ fontSize: 64, color: '#d1d5db' }} />
+          <Title level={4} type="secondary">Nenhuma despesa encontrada</Title>
+          <Button type="link" onClick={() => setShowModal(true)}>
             Cadastrar primeira despesa
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Descrição</th>
-                <th>Categoria</th>
-                <th>Fornecedor</th>
-                <th>Vencimento</th>
-                <th>Valor</th>
-                <th>Status</th>
-                <th>Comprovante</th>
-                <th className="actions-column">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {despesas.map((despesa) => (
-                <tr key={despesa.id}>
-                  <td>
-                    <strong>{despesa.descricao}</strong>
-                    {despesa.observacoes && (
-                      <span className="info-secondary">{despesa.observacoes}</span>
-                    )}
-                  </td>
-                  <td>{getCategoriaLabel(despesa.categoria)}</td>
-                  <td>{despesa.fornecedor || '-'}</td>
-                  <td>
-                    <span className="date-info">
-                      {formatDate(despesa.data_vencimento)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="valor-highlight">
-                      {formatCurrency(despesa.valor)}
-                    </span>
-                  </td>
-                  <td>{getStatusBadge(despesa)}</td>
-                  <td>
-                    {despesa.comprovante_url ? (
-                      <button
-                        className="btn-icon-small"
-                        onClick={() => handleDownloadComprovante(despesa)}
-                        title="Baixar Comprovante"
-                      >
-                        <Download size={16} />
-                      </button>
-                    ) : (
-                      <span className="info-secondary">-</span>
-                    )}
-                  </td>
-                  <td className="actions-column">
-                    <div className="action-buttons">
-                      {despesa.status !== 'pago' && (
-                        <button
-                          className="btn-icon"
-                          onClick={() => {
-                            setSelectedDespesa(despesa);
-                            setShowPaymentModal(true);
-                          }}
-                          title="Marcar como Pago"
-                        >
-                          <CheckCircle size={18} />
-                        </button>
-                      )}
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleEdit(despesa)}
-                        title="Editar"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        className="btn-icon danger"
-                        onClick={() => handleDelete(despesa)}
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card style={{ borderRadius: 16, border: '1px solid #f0f0f0' }}>
+          <Table
+            columns={columns}
+            dataSource={despesas}
+            rowKey="id"
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            scroll={{ x: 'max-content' }}
+          />
+        </Card>
       )}
 
       {/* Modal de Cadastro/Edição */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingDespesa ? 'Editar Despesa' : 'Nova Despesa'}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
+      <Modal
+        title={editingDespesa ? 'Editar Despesa' : 'Nova Despesa'}
+        open={showModal}
+        onCancel={() => {
+          setShowModal(false);
+          setEditingDespesa(null);
+          form.resetFields();
+          setSelectedFile(null);
+        }}
+        footer={null}
+        width={700}
+        style={{ top: 20 }}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ marginTop: 24 }}
+        >
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="descricao"
+                label="Descrição"
+                rules={[{ required: true, message: 'Descrição é obrigatória' }]}
+              >
+                <Input size="large" placeholder="Ex: Conta de luz" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="categoria"
+                label="Categoria"
+                rules={[{ required: true, message: 'Categoria é obrigatória' }]}
+              >
+                <Select size="large">
+                  {categorias.map(cat => (
+                    <Select.Option key={cat.value} value={cat.value}>{cat.label}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Descrição *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.descricao}
-                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                      placeholder="Ex: Conta de luz"
-                      required
-                    />
-                  </div>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="valor"
+                label="Valor"
+                rules={[
+                  { required: true, message: 'Valor é obrigatório' },
+                  {
+                    validator: (_, value) => {
+                      if (!value || value <= 0) {
+                        return Promise.reject('Valor deve ser maior que zero');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+              >
+                <InputNumber
+                  size="large"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  style={{ width: '100%' }}
+                  prefix="R$"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="data_vencimento"
+                label="Data de Vencimento"
+                rules={[{ required: true, message: 'Data de vencimento é obrigatória' }]}
+              >
+                <DatePicker
+                  size="large"
+                  format="DD/MM/YYYY"
+                  style={{ width: '100%' }}
+                  placeholder="Selecione a data"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-                  <div className="form-group">
-                    <label>Categoria *</label>
-                    <select
-                      className="form-select"
-                      value={formData.categoria}
-                      onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                      required
-                    >
-                      {categorias.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+          <Form.Item
+            name="fornecedor"
+            label="Fornecedor"
+          >
+            <Input size="large" placeholder="Nome do fornecedor (opcional)" />
+          </Form.Item>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Valor *</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      step="0.01"
-                      min="0"
-                      value={formData.valor}
-                      onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
+          <Form.Item
+            name="observacoes"
+            label="Observações"
+          >
+            <TextArea
+              rows={3}
+              placeholder="Informações adicionais (opcional)"
+            />
+          </Form.Item>
 
-                  <div className="form-group">
-                    <label>Data de Vencimento *</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={formData.data_vencimento}
-                      onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
+          <Form.Item label="Comprovante (PDF ou Imagem)">
+            <Upload
+              beforeUpload={(file) => {
+                setSelectedFile(file);
+                return false;
+              }}
+              maxCount={1}
+              accept=".pdf,.jpg,.jpeg,.png"
+            >
+              <Button icon={<UploadOutlined />} size="large">
+                {selectedFile ? selectedFile.name : 'Escolher arquivo'}
+              </Button>
+            </Upload>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+            </Text>
+          </Form.Item>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Fornecedor</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.fornecedor}
-                      onChange={(e) => setFormData({ ...formData, fornecedor: e.target.value })}
-                      placeholder="Nome do fornecedor (opcional)"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Observações</label>
-                    <textarea
-                      className="form-textarea"
-                      rows="3"
-                      value={formData.observacoes}
-                      onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                      placeholder="Informações adicionais (opcional)"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Comprovante (PDF ou Imagem)</label>
-                    <div className="file-upload">
-                      <input
-                        type="file"
-                        id="comprovante"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setSelectedFile(e.target.files[0])}
-                        className="file-input"
-                      />
-                      <label htmlFor="comprovante" className="file-label">
-                        <Upload size={20} />
-                        {selectedFile ? selectedFile.name : 'Escolher arquivo'}
-                      </label>
-                    </div>
-                    <span className="form-hint">
-                      Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={uploading}>
-                  {uploading ? 'Enviando...' : (editingDespesa ? 'Atualizar' : 'Cadastrar')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => setShowModal(false)} size="large">
+                Cancelar
+              </Button>
+              <Button type="primary" htmlType="submit" size="large" loading={uploading}>
+                {editingDespesa ? 'Atualizar' : 'Cadastrar'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Modal de Pagamento */}
-      {showPaymentModal && selectedDespesa && (
-        <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Marcar como Pago</h3>
-              <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
-                <X size={24} />
-              </button>
+      <Modal
+        title="Marcar como Pago"
+        open={showPaymentModal}
+        onCancel={() => {
+          setShowPaymentModal(false);
+          setSelectedDespesa(null);
+          paymentForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        {selectedDespesa && (
+          <>
+            <div style={{ padding: 16, background: '#f9fafb', borderRadius: 8, marginBottom: 16 }}>
+              <div><Text strong>Despesa:</Text> {selectedDespesa.descricao}</div>
+              <div><Text strong>Valor:</Text> {formatCurrency(selectedDespesa.valor)}</div>
+              <div><Text strong>Vencimento:</Text> {formatDate(selectedDespesa.data_vencimento)}</div>
             </div>
 
-            <form onSubmit={handleMarkAsPaid}>
-              <div className="modal-body">
-                <div className="info-box">
-                  <p>
-                    <strong>Despesa:</strong> {selectedDespesa.descricao}<br />
-                    <strong>Valor:</strong> {formatCurrency(selectedDespesa.valor)}<br />
-                    <strong>Vencimento:</strong> {formatDate(selectedDespesa.data_vencimento)}
-                  </p>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Data do Pagamento *</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={paymentData.data_pagamento}
-                      onChange={(e) => setPaymentData({ ...paymentData, data_pagamento: e.target.value })}
-                      required
+            <Form
+              form={paymentForm}
+              layout="vertical"
+              onFinish={handleMarkAsPaid}
+              style={{ marginTop: 16 }}
+            >
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="data_pagamento"
+                    label="Data do Pagamento"
+                    rules={[{ required: true, message: 'Data do pagamento é obrigatória' }]}
+                  >
+                    <DatePicker
+                      size="large"
+                      format="DD/MM/YYYY"
+                      style={{ width: '100%' }}
                     />
-                  </div>
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="forma_pagamento"
+                    label="Forma de Pagamento"
+                    rules={[{ required: true, message: 'Forma de pagamento é obrigatória' }]}
+                  >
+                    <Select size="large">
+                      <Select.Option value="dinheiro">Dinheiro</Select.Option>
+                      <Select.Option value="pix">PIX</Select.Option>
+                      <Select.Option value="transferencia">Transferência</Select.Option>
+                      <Select.Option value="debito_automatico">Débito Automático</Select.Option>
+                      <Select.Option value="cartao_credito">Cartão de Crédito</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
 
-                  <div className="form-group">
-                    <label>Forma de Pagamento *</label>
-                    <select
-                      className="form-select"
-                      value={paymentData.forma_pagamento}
-                      onChange={(e) => setPaymentData({ ...paymentData, forma_pagamento: e.target.value })}
-                      required
-                    >
-                      <option value="dinheiro">Dinheiro</option>
-                      <option value="pix">PIX</option>
-                      <option value="transferencia">Transferência</option>
-                      <option value="debito_automatico">Débito Automático</option>
-                      <option value="cartao_credito">Cartão de Crédito</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowPaymentModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <CheckCircle size={20} />
-                  Confirmar Pagamento
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+                <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                  <Button onClick={() => setShowPaymentModal(false)} size="large">
+                    Cancelar
+                  </Button>
+                  <Button type="primary" htmlType="submit" size="large" icon={<CheckCircleOutlined />}>
+                    Confirmar Pagamento
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

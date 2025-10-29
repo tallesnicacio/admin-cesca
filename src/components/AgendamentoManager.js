@@ -1,11 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Search, Check, X, Trash2, Download, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from './index';
-import { ConfirmModal, SelectModal } from './Modal';
-import './AgendamentoManager.css';
+import {
+  Table,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Space,
+  Tag,
+  Row,
+  Col,
+  Card,
+  Statistic,
+  Spin,
+  Empty,
+  message,
+  Typography,
+  Divider,
+  Tooltip
+} from 'antd';
+import {
+  SearchOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  PrinterOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined
+} from '@ant-design/icons';
+
+const { Title, Text } = Typography;
+const { Option } = Select;
+const { confirm } = Modal;
 
 function AgendamentoManager({ userProfile }) {
   const [agendamentos, setAgendamentos] = useState([]);
@@ -13,12 +41,16 @@ function AgendamentoManager({ userProfile }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-
-  // Estados dos modais
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, agendamento: null });
-  const [selectOpcaoModal, setSelectOpcaoModal] = useState({ isOpen: false, agendamento: null });
   const [modalLoading, setModalLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadAgendamentos();
@@ -41,7 +73,7 @@ function AgendamentoManager({ userProfile }) {
       setAgendamentos(data || []);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
-      showToast.error('Erro ao carregar agendamentos');
+      message.error('Erro ao carregar agendamentos');
     } finally {
       setLoading(false);
     }
@@ -80,22 +112,46 @@ function AgendamentoManager({ userProfile }) {
     }
 
     // Se houver segunda opção, perguntar qual foi escolhida
-    setSelectOpcaoModal({ isOpen: true, agendamento });
-  };
+    Modal.confirm({
+      title: 'Qual opção de atendimento foi aceita?',
+      content: (
+        <div>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            Selecione qual das opções de atendimento o assistido aceitou:
+          </Text>
+          <div id="opcao-select-container"></div>
+        </div>
+      ),
+      okText: 'Continuar',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        const selectElement = document.querySelector('#opcao-select-value');
+        const opcao = selectElement ? selectElement.value : 'primeira';
+        setModalLoading(true);
+        try {
+          await handleUpdateStatus(agendamento.id, 'Confirmado', nomeAtendente, opcao);
+        } finally {
+          setModalLoading(false);
+        }
+      },
+      afterClose: () => {
+        const container = document.querySelector('#opcao-select-container');
+        if (container) container.innerHTML = '';
+      }
+    });
 
-  // Handler para quando a opção é selecionada
-  const handleOpcaoSelecionada = async (opcao) => {
-    const agendamento = selectOpcaoModal.agendamento;
-    const nomeAtendente = userProfile?.name || 'Admin';
-
-    setSelectOpcaoModal({ isOpen: false, agendamento: null });
-    setModalLoading(true);
-
-    try {
-      await handleUpdateStatus(agendamento.id, 'Confirmado', nomeAtendente, opcao);
-    } finally {
-      setModalLoading(false);
-    }
+    // Adicionar select ao modal após renderização
+    setTimeout(() => {
+      const container = document.querySelector('#opcao-select-container');
+      if (container) {
+        container.innerHTML = `
+          <select id="opcao-select-value" class="ant-select ant-select-single" style="width: 100%; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px;">
+            <option value="primeira">${agendamento.primeira_opcao}</option>
+            <option value="segunda">${agendamento.segunda_opcao}</option>
+          </select>
+        `;
+      }
+    }, 100);
   };
 
   const handleUpdateStatus = async (id, newStatus, atendente = null, opcaoEscolhida = null) => {
@@ -113,56 +169,52 @@ function AgendamentoManager({ userProfile }) {
         .eq('id', id);
 
       if (error) throw error;
-      showToast.success('Status atualizado com sucesso!');
+      message.success('Status atualizado com sucesso!');
       loadAgendamentos();
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      showToast.error('Erro ao atualizar status: ' + error.message);
+      message.error('Erro ao atualizar status: ' + error.message);
     }
   };
 
   const handleDelete = (id) => {
-    setDeleteModal({ isOpen: true, id });
-  };
+    confirm({
+      title: 'Excluir agendamento',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.',
+      okText: 'Excluir',
+      okType: 'danger',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('agendamentos')
+            .delete()
+            .eq('id', id);
 
-  const handleDeleteConfirm = async () => {
-    setModalLoading(true);
-    const id = deleteModal.id;
-
-    try {
-      const { error } = await supabase
-        .from('agendamentos')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      showToast.success('Agendamento excluído com sucesso!');
-      loadAgendamentos();
-      setDeleteModal({ isOpen: false, id: null });
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-      showToast.error('Erro ao excluir: ' + error.message);
-    } finally {
-      setModalLoading(false);
-    }
+          if (error) throw error;
+          message.success('Agendamento excluído com sucesso!');
+          loadAgendamentos();
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+          message.error('Erro ao excluir: ' + error.message);
+        }
+      }
+    });
   };
 
   const handleCancelarAgendamento = (id) => {
-    setConfirmModal({ isOpen: true, agendamento: { id } });
-  };
-
-  const handleCancelarConfirm = async () => {
-    setModalLoading(true);
-    const id = confirmModal.agendamento.id;
-
-    try {
-      await handleUpdateStatus(id, 'Cancelado');
-      setConfirmModal({ isOpen: false, agendamento: null });
-    } catch (error) {
-      // Erro já tratado no handleUpdateStatus
-    } finally {
-      setModalLoading(false);
-    }
+    confirm({
+      title: 'Cancelar agendamento',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Tem certeza que deseja cancelar este agendamento?',
+      okText: 'Sim, cancelar',
+      okType: 'danger',
+      cancelText: 'Não',
+      onOk: async () => {
+        await handleUpdateStatus(id, 'Cancelado');
+      }
+    });
   };
 
   const exportToExcel = () => {
@@ -184,11 +236,17 @@ function AgendamentoManager({ userProfile }) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Agendamentos');
     XLSX.writeFile(wb, `agendamentos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    message.success('Excel exportado com sucesso!');
   };
 
   const printCallList = () => {
     // Filtrar apenas confirmados
     const confirmados = agendamentos.filter(a => a.status === 'Confirmado');
+
+    if (confirmados.length === 0) {
+      message.warning('Nenhum agendamento confirmado para imprimir');
+      return;
+    }
 
     // Agrupar por tipo de atendimento (baseado na opção escolhida)
     const porTipo = {};
@@ -315,278 +373,276 @@ function AgendamentoManager({ userProfile }) {
     };
   };
 
+  const getStatusTag = (status) => {
+    const statusConfig = {
+      'Pendente de confirmação': { color: 'orange', text: 'Pendente' },
+      'Confirmado': { color: 'green', text: 'Confirmado' },
+      'Cancelado': { color: 'red', text: 'Cancelado' }
+    };
+    const config = statusConfig[status] || { color: 'default', text: status };
+    return <Tag color={config.color}>{config.text}</Tag>;
+  };
+
+  const columns = [
+    {
+      title: 'Data',
+      dataIndex: 'data_solicitacao',
+      key: 'data_solicitacao',
+      width: 180,
+      render: (date) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {new Date(date).toLocaleString('pt-BR')}
+        </Text>
+      ),
+      sorter: (a, b) => new Date(a.data_solicitacao) - new Date(b.data_solicitacao),
+    },
+    {
+      title: 'Nome',
+      dataIndex: 'nome_completo',
+      key: 'nome_completo',
+      render: (nome, record) => (
+        <Space>
+          <Text strong>{nome}</Text>
+          {record.observacoes && (
+            <Tooltip title={record.observacoes}>
+              <InfoCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+      sorter: (a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''),
+    },
+    {
+      title: 'Contato',
+      key: 'contato',
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <Text style={{ fontSize: 13 }}>{record.email}</Text>
+          <Text style={{ fontSize: 13 }}>{record.telefone}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.canal_preferencial}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Atendimento',
+      key: 'atendimento',
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <Text style={{ fontSize: 13 }}>
+            <strong>1ª:</strong> {record.primeira_opcao}
+            {record.opcao_escolhida === 'primeira' &&
+              <CheckOutlined style={{ color: '#10b981', marginLeft: 4 }} />
+            }
+          </Text>
+          {record.segunda_opcao && (
+            <Text style={{ fontSize: 13 }}>
+              <strong>2ª:</strong> {record.segunda_opcao}
+              {record.opcao_escolhida === 'segunda' &&
+                <CheckOutlined style={{ color: '#10b981', marginLeft: 4 }} />
+              }
+            </Text>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status, record) => (
+        <Space direction="vertical" size={4}>
+          {getStatusTag(status)}
+          {record.atendente && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Por: {record.atendente}
+            </Text>
+          )}
+        </Space>
+      ),
+      filters: [
+        { text: 'Pendente', value: 'Pendente de confirmação' },
+        { text: 'Confirmado', value: 'Confirmado' },
+        { text: 'Cancelado', value: 'Cancelado' },
+      ],
+      onFilter: (value, record) => record.status === value,
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          {record.status === 'Pendente de confirmação' && (
+            <Tooltip title="Confirmar">
+              <Button
+                type="text"
+                icon={<CheckOutlined />}
+                style={{ color: '#10b981' }}
+                onClick={() => handleConfirmarAgendamento(record)}
+              />
+            </Tooltip>
+          )}
+          {record.status !== 'Cancelado' && (
+            <Tooltip title="Cancelar">
+              <Button
+                type="text"
+                icon={<CloseOutlined />}
+                style={{ color: '#f59e0b' }}
+                onClick={() => handleCancelarAgendamento(record.id)}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="Excluir">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
   if (loading) {
-    return <div className="loading">Carregando...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
-    <div className="quiz-manager">
-      <Toaster position="top-right" />
-      <div className="manager-header">
-        <h2>Gerenciar Agendamentos</h2>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn-secondary" onClick={printCallList}>
-            <Printer size={20} />
-            Lista de Chamada
-          </button>
-          <button className="btn-primary" onClick={exportToExcel}>
-            <Download size={20} />
-            Exportar Excel
-          </button>
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: isMobile ? 20 : 32 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          marginBottom: 16,
+          gap: isMobile ? 12 : 0
+        }}>
+          <div>
+            <Title level={2} style={{ margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 600, letterSpacing: '-0.5px' }}>
+              Agendamentos
+            </Title>
+            <Text type="secondary" style={{ fontSize: isMobile ? 13 : 15 }}>
+              Gerencie as solicitações de agendamento
+            </Text>
+          </div>
+          <Space direction={isMobile ? 'horizontal' : 'horizontal'} style={{ width: isMobile ? '100%' : 'auto' }}>
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={printCallList}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ flex: isMobile ? 1 : 'none' }}
+            >
+              {isMobile ? 'Lista' : 'Lista de Chamada'}
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={exportToExcel}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ flex: isMobile ? 1 : 'none' }}
+            >
+              {isMobile ? 'Excel' : 'Exportar Excel'}
+            </Button>
+          </Space>
         </div>
-      </div>
 
-      <div className="filters">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome, email ou telefone..."
+        <Divider style={{ margin: isMobile ? '16px 0' : '24px 0', borderColor: '#f0f0f0' }} />
+
+        {/* Stats */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8}>
+            <Card style={{ borderRadius: 12, border: '1px solid #f0f0f0' }}>
+              <Statistic
+                title="Total de Agendamentos"
+                value={agendamentos.length}
+                valueStyle={{ color: '#1a1a1a', fontSize: 32, fontWeight: 600 }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card style={{ borderRadius: 12, border: '1px solid #f59e0b' }}>
+              <Statistic
+                title="Pendentes"
+                value={agendamentos.filter(a => a.status === 'Pendente de confirmação').length}
+                valueStyle={{ color: '#f59e0b', fontSize: 32, fontWeight: 600 }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card style={{ borderRadius: 12, border: '1px solid #10b981' }}>
+              <Statistic
+                title="Confirmados"
+                value={agendamentos.filter(a => a.status === 'Confirmado').length}
+                valueStyle={{ color: '#10b981', fontSize: 32, fontWeight: 600 }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Filters */}
+        <Space
+          direction={isMobile ? 'vertical' : 'horizontal'}
+          size="middle"
+          style={{ width: '100%', marginBottom: isMobile ? 16 : 24 }}
+        >
+          <Input
+            placeholder={isMobile ? "Buscar..." : "Buscar por nome, email ou telefone..."}
+            prefix={<SearchOutlined />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            size={isMobile ? 'middle' : 'large'}
+            style={{ width: isMobile ? '100%' : 400, borderRadius: 10 }}
+            allowClear
           />
-        </div>
-
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="all">Todos os Status</option>
-          <option value="Pendente de confirmação">Pendentes</option>
-          <option value="Confirmado">Confirmados</option>
-          <option value="Cancelado">Cancelados</option>
-        </select>
+          <Select
+            value={filterStatus}
+            onChange={setFilterStatus}
+            size={isMobile ? 'middle' : 'large'}
+            style={{ width: isMobile ? '100%' : 200, borderRadius: 10 }}
+          >
+            <Option value="all">Todos os Status</Option>
+            <Option value="Pendente de confirmação">Pendentes</Option>
+            <Option value="Confirmado">Confirmados</Option>
+            <Option value="Cancelado">Cancelados</Option>
+          </Select>
+        </Space>
       </div>
 
-      <div className="stats-bar">
-        <div className="stat-item">
-          <span className="stat-value">{agendamentos.length}</span>
-          <span className="stat-label">Total</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">
-            {agendamentos.filter(a => a.status === 'Pendente de confirmação').length}
-          </span>
-          <span className="stat-label">Pendentes</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">
-            {agendamentos.filter(a => a.status === 'Confirmado').length}
-          </span>
-          <span className="stat-label">Confirmados</span>
-        </div>
-      </div>
-
-      <div className="agendamentos-table">
-        {filteredAgendamentos.length === 0 ? (
-          <div className="empty-state">
-            <p>Nenhum agendamento encontrado</p>
-          </div>
-        ) : (
-          <>
-            {/* Cards para mobile */}
-            {filteredAgendamentos.map((ag) => (
-              <div key={`card-${ag.id}`} className="agendamento-card">
-                <div className="agendamento-card-header">
-                  <div className="agendamento-card-title">
-                    <h3>{ag.nome_completo}</h3>
-                    <p>{new Date(ag.data_solicitacao).toLocaleString('pt-BR')}</p>
-                  </div>
-                  <span className={`status-badge ${ag.status.toLowerCase().replace(/ /g, '-')}`}>
-                    {ag.status}
-                  </span>
-                </div>
-
-                <div className="agendamento-card-body">
-                  <div className="agendamento-card-field">
-                    <label>Contato</label>
-                    <div className="value">
-                      <div>{ag.email}</div>
-                      <div>{ag.telefone}</div>
-                      <small>{ag.canal_preferencial}</small>
-                    </div>
-                  </div>
-
-                  <div className="agendamento-card-field">
-                    <label>Opções de Atendimento</label>
-                    <div className="value">
-                      <div>
-                        <strong>1ª:</strong> {ag.primeira_opcao}
-                        {ag.opcao_escolhida === 'primeira' && <span style={{color: '#10b981', marginLeft: '4px'}}>✓</span>}
-                      </div>
-                      {ag.segunda_opcao && (
-                        <div>
-                          <strong>2ª:</strong> {ag.segunda_opcao}
-                          {ag.opcao_escolhida === 'segunda' && <span style={{color: '#10b981', marginLeft: '4px'}}>✓</span>}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {ag.atendente && (
-                    <div className="agendamento-card-field">
-                      <label>Atendente</label>
-                      <div className="value">{ag.atendente}</div>
-                    </div>
-                  )}
-
-                  {ag.observacoes && (
-                    <div className="agendamento-card-field">
-                      <label>Observações</label>
-                      <div className="value">{ag.observacoes}</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="agendamento-card-actions">
-                  {ag.status === 'Pendente de confirmação' && (
-                    <button
-                      className="btn-primary"
-                      onClick={() => handleConfirmarAgendamento(ag)}
-                      style={{ flex: 2 }}
-                    >
-                      <Check size={18} />
-                      Confirmar
-                    </button>
-                  )}
-                  {ag.status !== 'Cancelado' && (
-                    <button
-                      className="btn-secondary"
-                      onClick={() => handleCancelarAgendamento(ag.id)}
-                    >
-                      <X size={18} />
-                      Cancelar
-                    </button>
-                  )}
-                  <button
-                    className="btn-icon danger"
-                    onClick={() => handleDelete(ag.id)}
-                    title="Excluir"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Tabela para desktop */}
-            <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Nome</th>
-                <th>Contato</th>
-                <th>Atendimento</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAgendamentos.map((ag) => (
-                <tr key={ag.id}>
-                  <td>{new Date(ag.data_solicitacao).toLocaleString('pt-BR')}</td>
-                  <td>
-                    <strong>{ag.nome_completo}</strong>
-                    {ag.observacoes && <small title={ag.observacoes}>ℹ️</small>}
-                  </td>
-                  <td>
-                    <div>{ag.email}</div>
-                    <div>{ag.telefone}</div>
-                    <small>{ag.canal_preferencial}</small>
-                  </td>
-                  <td>
-                    <div>
-                      <strong>1ª:</strong> {ag.primeira_opcao}
-                      {ag.opcao_escolhida === 'primeira' && <span style={{color: '#10b981', marginLeft: '4px'}}>✓</span>}
-                    </div>
-                    {ag.segunda_opcao && (
-                      <div>
-                        <strong>2ª:</strong> {ag.segunda_opcao}
-                        {ag.opcao_escolhida === 'segunda' && <span style={{color: '#10b981', marginLeft: '4px'}}>✓</span>}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${ag.status.toLowerCase().replace(/ /g, '-')}`}>
-                      {ag.status}
-                    </span>
-                    {ag.atendente && <div><small>Por: {ag.atendente}</small></div>}
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      {ag.status === 'Pendente de confirmação' && (
-                        <button
-                          className="btn-icon success"
-                          onClick={() => handleConfirmarAgendamento(ag)}
-                          title="Confirmar"
-                        >
-                          <Check size={18} />
-                        </button>
-                      )}
-                      {ag.status !== 'Cancelado' && (
-                        <button
-                          className="btn-icon warning"
-                          onClick={() => handleCancelarAgendamento(ag.id)}
-                          title="Cancelar"
-                        >
-                          <X size={18} />
-                        </button>
-                      )}
-                      <button
-                        className="btn-icon danger"
-                        onClick={() => handleDelete(ag.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </>
-        )}
-      </div>
-
-      {/* Modais */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, id: null })}
-        onConfirm={handleDeleteConfirm}
-        title="Excluir agendamento"
-        message="Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita."
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        type="danger"
-        loading={modalLoading}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, agendamento: null })}
-        onConfirm={handleCancelarConfirm}
-        title="Cancelar agendamento"
-        message="Tem certeza que deseja cancelar este agendamento?"
-        confirmText="Sim, cancelar"
-        cancelText="Não"
-        type="warning"
-        loading={modalLoading}
-      />
-
-      {selectOpcaoModal.agendamento && (
-        <SelectModal
-          isOpen={selectOpcaoModal.isOpen}
-          onClose={() => setSelectOpcaoModal({ isOpen: false, agendamento: null })}
-          onSelect={handleOpcaoSelecionada}
-          title="Qual opção de atendimento foi aceita?"
-          message="Selecione qual das opções de atendimento o assistido aceitou:"
-          options={[
-            { value: 'primeira', label: selectOpcaoModal.agendamento.primeira_opcao },
-            { value: 'segunda', label: selectOpcaoModal.agendamento.segunda_opcao }
-          ]}
-          confirmText="Continuar"
-          cancelText="Cancelar"
+      {/* Table */}
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: isMobile ? 12 : 16,
+          border: '1px solid #f0f0f0',
+          padding: isMobile ? 12 : 24,
+        }}
+      >
+        <Table
+          columns={columns}
+          dataSource={filteredAgendamentos}
+          rowKey="id"
+          pagination={{
+            pageSize: isMobile ? 10 : 20,
+            showSizeChanger: !isMobile,
+            showTotal: (total) => `${total} agendamentos`,
+            size: isMobile ? 'small' : 'default'
+          }}
+          locale={{
+            emptyText: <Empty description="Nenhum agendamento encontrado" />
+          }}
           loading={modalLoading}
+          scroll={{ x: isMobile ? 800 : undefined }}
+          size={isMobile ? 'small' : 'default'}
         />
-      )}
+      </div>
     </div>
   );
 }

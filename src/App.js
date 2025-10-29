@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { ConfigProvider, theme, App as AntApp } from 'antd';
+import ptBR from 'antd/locale/pt_BR';
 import { supabase } from './supabaseClient';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -84,9 +86,63 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <ConfigProvider
+      locale={ptBR}
+      theme={{
+        token: {
+          colorPrimary: '#667eea',
+          colorSuccess: '#10b981',
+          colorWarning: '#f59e0b',
+          colorError: '#ef4444',
+          colorInfo: '#3b82f6',
+          colorTextBase: '#1a1a1a',
+          colorTextSecondary: '#666666',
+          colorBorder: '#e8e8e8',
+          colorBgContainer: '#ffffff',
+          borderRadius: 12,
+          fontSize: 15,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          lineHeight: 1.6,
+          controlHeight: 40,
+          controlHeightLG: 48,
+          controlHeightSM: 32,
+        },
+        components: {
+          Button: {
+            fontWeight: 500,
+            borderRadius: 10,
+            controlHeight: 40,
+            paddingContentHorizontal: 20,
+          },
+          Card: {
+            borderRadiusLG: 16,
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+            paddingLG: 32,
+          },
+          Table: {
+            borderRadius: 12,
+            headerBg: '#fafafa',
+            headerColor: '#666',
+            fontSize: 14,
+          },
+          Input: {
+            borderRadius: 10,
+            controlHeight: 40,
+          },
+          Select: {
+            borderRadius: 10,
+            controlHeight: 40,
+          },
+        },
+        algorithm: theme.defaultAlgorithm,
+      }}
+    >
+      <AntApp>
+        <Router>
+          <AppContent />
+        </Router>
+      </AntApp>
+    </ConfigProvider>
   );
 }
 

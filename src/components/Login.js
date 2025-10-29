@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
+import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
 import './Login.css';
 
+const { Title, Text } = Typography;
+
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (values) => {
     setError(null);
     setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: values.email,
+        password: values.password,
       });
 
       if (error) throw error;
@@ -42,46 +43,77 @@ function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-box">
-        <div className="login-header">
-          <h1>Admin CESCA</h1>
-          <p>Painel Administrativo</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="login-form">
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              required
-              disabled={loading}
-            />
+      <Card
+        className="login-card"
+        style={{
+          maxWidth: 400,
+          width: '100%',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        }}
+      >
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div style={{ textAlign: 'center' }}>
+            <Title level={2} style={{ marginBottom: 8 }}>Admin CESCA</Title>
+            <Text type="secondary">Painel Administrativo</Text>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Senha</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              disabled={loading}
+          {error && (
+            <Alert
+              message="Erro ao fazer login"
+              description={error}
+              type="error"
+              showIcon
+              closable
+              onClose={() => setError(null)}
             />
-          </div>
+          )}
 
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
-      </div>
+          <Form
+            name="login"
+            onFinish={handleLogin}
+            layout="vertical"
+            size="large"
+          >
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: 'Por favor, insira seu email!' },
+                { type: 'email', message: 'Por favor, insira um email válido!' }
+              ]}
+            >
+              <Input
+                prefix={<MailOutlined />}
+                placeholder="seu@email.com"
+                disabled={loading}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label="Senha"
+              rules={[{ required: true, message: 'Por favor, insira sua senha!' }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="••••••••"
+                disabled={loading}
+              />
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+              >
+                {loading ? 'Entrando...' : 'Entrar'}
+              </Button>
+            </Form.Item>
+          </Form>
+        </Space>
+      </Card>
     </div>
   );
 }

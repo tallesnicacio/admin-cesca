@@ -1,16 +1,37 @@
-// CapacitacoesManager.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { showToast } from '../Toast';
 import {
-  Award,
-  Search,
-  X,
-  Edit2,
-  User,
-  CheckCircle
-} from 'lucide-react';
-import './CapacitacoesManager.css';
+  Card,
+  Button,
+  Input,
+  Select,
+  Space,
+  Typography,
+  Modal,
+  message,
+  Empty,
+  Spin,
+  Tag,
+  List,
+  Row,
+  Col,
+} from 'antd';
+import {
+  TrophyOutlined,
+  UserOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  SearchOutlined,
+  CheckCircleOutlined,
+  StarOutlined,
+  RiseOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+
+const { Title, Text } = Typography;
+const { Option } = Select;
+const { TextArea } = Input;
 
 const CapacitacoesManager = () => {
   const [trabalhadores, setTrabalhadores] = useState([]);
@@ -20,7 +41,7 @@ const CapacitacoesManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
-  const [selectedTipos, setSelectedTipos] = useState([]);
+  const [capacitacoesEdit, setCapacitacoesEdit] = useState([]);
 
   // Carregar dados
   const fetchData = useCallback(async () => {
@@ -31,8 +52,8 @@ const CapacitacoesManager = () => {
       const { data: trabData, error: trabError } = await supabase
         .from('trabalhadores')
         .select('*')
-        .eq('ativo', true)
-        .order('nome');
+        .eq('status', 'ativo')
+        .order('nome_completo');
 
       if (trabError) throw trabError;
 
@@ -47,7 +68,7 @@ const CapacitacoesManager = () => {
 
       // Carregar capacitações
       const { data: capData, error: capError } = await supabase
-        .from('capacitacoes')
+        .from('trabalhadores_capacitacoes')
         .select('*');
 
       if (capError) throw capError;
@@ -57,7 +78,7 @@ const CapacitacoesManager = () => {
       setCapacitacoes(capData || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      showToast.error('Erro ao carregar dados');
+      message.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -67,248 +88,421 @@ const CapacitacoesManager = () => {
     fetchData();
   }, [fetchData]);
 
-  // Obter capacitações de um trabalhador
+  // Constantes
+  const NIVEIS_EXPERIENCIA = [
+    { value: 'iniciante', label: 'Iniciante', color: '#fbbf24' },
+    { value: 'intermediario', label: 'Intermediário', color: '#60a5fa' },
+    { value: 'experiente', label: 'Experiente', color: '#34d399' }
+  ];
+
+  const PRIORIDADES = [
+    { value: 1, label: 'Alta', color: '#10b981' },
+    { value: 2, label: 'Média', color: '#f59e0b' },
+    { value: 3, label: 'Baixa', color: '#ef4444' }
+  ];
+
+  // Obter capacitações completas de um trabalhador
   const getCapacitacoesTrabalhador = (trabalhadorId) => {
-    return capacitacoes
-      .filter(c => c.trabalhador_id === trabalhadorId)
-      .map(c => c.tipo_atendimento_id);
+    return capacitacoes.filter(c => c.trabalhador_id === trabalhadorId);
   };
 
-  // Obter nome do tipo de atendimento
-  const getTipoNome = (tipoId) => {
-    const tipo = tiposAtendimento.find(t => t.id === tipoId);
-    return tipo ? tipo.nome : 'Desconhecido';
+  // Obter tipo de atendimento
+  const getTipoAtendimento = (tipoId) => {
+    return tiposAtendimento.find(t => t.id === tipoId);
+  };
+
+  // Obter label do nível
+  const getNivelLabel = (nivel) => {
+    const nivelObj = NIVEIS_EXPERIENCIA.find(n => n.value === nivel);
+    return nivelObj ? nivelObj : { label: nivel, color: '#gray' };
+  };
+
+  // Obter label da prioridade
+  const getPrioridadeLabel = (prioridade) => {
+    const prioridadeObj = PRIORIDADES.find(p => p.value === prioridade);
+    return prioridadeObj ? prioridadeObj : { label: `Prioridade ${prioridade}`, color: '#gray' };
   };
 
   // Abrir modal de edição
   const handleEditCapacitacoes = (trabalhador) => {
     setSelectedTrabalhador(trabalhador);
-    setSelectedTipos(getCapacitacoesTrabalhador(trabalhador.id));
+    const caps = getCapacitacoesTrabalhador(trabalhador.id);
+    setCapacitacoesEdit(caps.map(c => ({ ...c })));
     setShowModal(true);
   };
 
-  // Alternar seleção de tipo
-  const toggleTipo = (tipoId) => {
-    setSelectedTipos(prev =>
-      prev.includes(tipoId)
-        ? prev.filter(id => id !== tipoId)
-        : [...prev, tipoId]
-    );
+  // Adicionar nova capacitação
+  const handleAddCapacitacao = () => {
+    setCapacitacoesEdit(prev => [
+      ...prev,
+      {
+        id: `new_${Date.now()}`,
+        trabalhador_id: selectedTrabalhador.id,
+        tipo_atendimento_id: '',
+        nivel_experiencia: 'intermediario',
+        preferencia_prioridade: 2,
+        observacoes: '',
+        _isNew: true
+      }
+    ]);
+  };
+
+  // Remover capacitação
+  const handleRemoveCapacitacao = (index) => {
+    setCapacitacoesEdit(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Atualizar campo da capacitação
+  const handleUpdateCapacitacao = (index, field, value) => {
+    setCapacitacoesEdit(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   // Salvar capacitações
   const handleSave = async () => {
     if (!selectedTrabalhador) return;
 
+    // Validar que todas as capacitações têm tipo selecionado
+    const hasEmptyTipo = capacitacoesEdit.some(c => !c.tipo_atendimento_id);
+    if (hasEmptyTipo) {
+      message.error('Selecione o tipo de atendimento para todas as capacitações');
+      return;
+    }
+
+    // Validar duplicatas
+    const tiposIds = capacitacoesEdit.map(c => c.tipo_atendimento_id);
+    const hasDuplicates = new Set(tiposIds).size !== tiposIds.length;
+    if (hasDuplicates) {
+      message.error('Não pode haver capacitações duplicadas para o mesmo tipo');
+      return;
+    }
+
     try {
       const trabalhadorId = selectedTrabalhador.id;
       const capacitacoesAtuais = getCapacitacoesTrabalhador(trabalhadorId);
 
-      // Tipos a adicionar
-      const tiposAdicionar = selectedTipos.filter(t => !capacitacoesAtuais.includes(t));
+      // Separar capacitações novas, para atualizar e para remover
+      const novas = capacitacoesEdit.filter(c => c._isNew);
+      const existentes = capacitacoesEdit.filter(c => !c._isNew);
+      const idsExistentes = existentes.map(c => c.id);
+      const paraRemover = capacitacoesAtuais.filter(c => !idsExistentes.includes(c.id));
 
-      // Tipos a remover
-      const tiposRemover = capacitacoesAtuais.filter(t => !selectedTipos.includes(t));
-
-      // Adicionar novas capacitações
-      if (tiposAdicionar.length > 0) {
-        const novasCapacitacoes = tiposAdicionar.map(tipoId => ({
-          trabalhador_id: trabalhadorId,
-          tipo_atendimento_id: tipoId
-        }));
-
+      // 1. Inserir novas capacitações
+      if (novas.length > 0) {
         const { error: insertError } = await supabase
-          .from('capacitacoes')
-          .insert(novasCapacitacoes);
+          .from('trabalhadores_capacitacoes')
+          .insert(
+            novas.map(c => ({
+              trabalhador_id: trabalhadorId,
+              tipo_atendimento_id: c.tipo_atendimento_id,
+              nivel_experiencia: c.nivel_experiencia,
+              preferencia_prioridade: c.preferencia_prioridade,
+              observacoes: c.observacoes || null
+            }))
+          );
 
         if (insertError) throw insertError;
       }
 
-      // Remover capacitações
-      if (tiposRemover.length > 0) {
+      // 2. Atualizar capacitações existentes
+      for (const cap of existentes) {
+        const { error: updateError } = await supabase
+          .from('trabalhadores_capacitacoes')
+          .update({
+            tipo_atendimento_id: cap.tipo_atendimento_id,
+            nivel_experiencia: cap.nivel_experiencia,
+            preferencia_prioridade: cap.preferencia_prioridade,
+            observacoes: cap.observacoes || null
+          })
+          .eq('id', cap.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // 3. Remover capacitações
+      if (paraRemover.length > 0) {
         const { error: deleteError } = await supabase
-          .from('capacitacoes')
+          .from('trabalhadores_capacitacoes')
           .delete()
-          .eq('trabalhador_id', trabalhadorId)
-          .in('tipo_atendimento_id', tiposRemover);
+          .in('id', paraRemover.map(c => c.id));
 
         if (deleteError) throw deleteError;
       }
 
-      showToast.success('Capacitações atualizadas com sucesso!');
+      message.success('Capacitações atualizadas com sucesso!');
       setShowModal(false);
       setSelectedTrabalhador(null);
-      setSelectedTipos([]);
+      setCapacitacoesEdit([]);
       fetchData();
     } catch (error) {
       console.error('Erro ao salvar capacitações:', error);
-      showToast.error('Erro ao salvar capacitações');
+      message.error('Erro ao salvar capacitações: ' + error.message);
     }
   };
 
   // Filtrar trabalhadores
   const trabalhadoresFiltrados = trabalhadores.filter(t =>
-    t.nome.toLowerCase().includes(searchTerm.toLowerCase())
+    t.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="capacitacoes-manager">
+    <div>
       {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <Award size={32} />
+      <div style={{ marginBottom: 24 }}>
+        <Space>
+          <TrophyOutlined style={{ fontSize: 28, color: '#f59e0b' }} />
           <div>
-            <h2>Capacitações</h2>
-            <p className="header-subtitle">
+            <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+              Capacitações
+            </Title>
+            <Text type="secondary" style={{ fontSize: 14 }}>
               Gerencie em quais tipos de atendimento cada trabalhador pode atuar
-            </p>
+            </Text>
           </div>
-        </div>
+        </Space>
       </div>
 
       {/* Busca */}
-      <div className="search-container">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Buscar trabalhador..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button className="clear-search" onClick={() => setSearchTerm('')}>
-              <X size={18} />
-            </button>
-          )}
-        </div>
-      </div>
+      <Card style={{ marginBottom: 24, borderRadius: 12, border: '1px solid #f0f0f0' }}>
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder="Buscar trabalhador..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          allowClear
+          size="large"
+        />
+      </Card>
 
       {/* Lista de Trabalhadores */}
       {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>Carregando trabalhadores...</p>
+        <div style={{ textAlign: 'center', padding: '100px 0' }}>
+          <Spin size="large" />
+          <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
+            Carregando trabalhadores...
+          </Text>
         </div>
       ) : trabalhadoresFiltrados.length === 0 ? (
-        <div className="empty-state">
-          <User size={64} />
-          <p>Nenhum trabalhador encontrado</p>
-        </div>
+        <Card style={{ borderRadius: 12, border: '1px solid #f0f0f0' }}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Nenhum trabalhador encontrado"
+          />
+        </Card>
       ) : (
-        <div className="trabalhadores-list">
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {trabalhadoresFiltrados.map((trabalhador) => {
-            const capacitacoesIds = getCapacitacoesTrabalhador(trabalhador.id);
+            const caps = getCapacitacoesTrabalhador(trabalhador.id);
 
             return (
-              <div key={trabalhador.id} className="trabalhador-card">
-                <div className="trabalhador-info">
-                  <div className="trabalhador-avatar">
-                    <User size={24} />
-                  </div>
-                  <div className="trabalhador-details">
-                    <h3>{trabalhador.nome}</h3>
+              <Card
+                key={trabalhador.id}
+                style={{ borderRadius: 12, border: '1px solid #f0f0f0' }}
+                title={
+                  <Space>
+                    <UserOutlined style={{ fontSize: 18, color: '#3b82f6' }} />
+                    <Text strong style={{ fontSize: 16 }}>
+                      {trabalhador.nome_completo}
+                    </Text>
                     {trabalhador.funcao && (
-                      <span className="trabalhador-funcao">{trabalhador.funcao}</span>
+                      <Tag color="blue">{trabalhador.funcao}</Tag>
                     )}
-                  </div>
-                </div>
+                    <Tag color="purple">
+                      <TrophyOutlined style={{ marginRight: 4 }} />
+                      {caps.length} {caps.length === 1 ? 'capacitação' : 'capacitações'}
+                    </Tag>
+                  </Space>
+                }
+                extra={
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditCapacitacoes(trabalhador)}
+                  >
+                    Editar
+                  </Button>
+                }
+              >
+                {caps.length === 0 ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="Nenhuma capacitação cadastrada"
+                  />
+                ) : (
+                  <List
+                    dataSource={caps}
+                    renderItem={(cap) => {
+                      const tipo = getTipoAtendimento(cap.tipo_atendimento_id);
+                      const nivel = getNivelLabel(cap.nivel_experiencia);
+                      const prioridade = getPrioridadeLabel(cap.preferencia_prioridade);
 
-                <div className="capacitacoes-badges">
-                  {capacitacoesIds.length === 0 ? (
-                    <span className="no-capacitacoes">Nenhuma capacitação</span>
-                  ) : (
-                    capacitacoesIds.map(tipoId => (
-                      <span key={tipoId} className="capacitacao-badge">
-                        <CheckCircle size={14} />
-                        {getTipoNome(tipoId)}
-                      </span>
-                    ))
-                  )}
-                </div>
-
-                <button
-                  className="btn btn-secondary btn-small"
-                  onClick={() => handleEditCapacitacoes(trabalhador)}
-                >
-                  <Edit2 size={16} />
-                  Editar
-                </button>
-              </div>
+                      return (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={
+                              <Space>
+                                <Text strong>{tipo?.nome || 'Tipo desconhecido'}</Text>
+                                <Tag color={nivel.color}>{nivel.label}</Tag>
+                                <Tag color={prioridade.color}>Prioridade: {prioridade.label}</Tag>
+                              </Space>
+                            }
+                            description={cap.observacoes || null}
+                          />
+                        </List.Item>
+                      );
+                    }}
+                  />
+                )}
+              </Card>
             );
           })}
-        </div>
+        </Space>
       )}
 
       {/* Modal de Edição */}
-      {showModal && selectedTrabalhador && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3>Editar Capacitações</h3>
-                <p className="modal-subtitle">{selectedTrabalhador.nome}</p>
-              </div>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {tiposAtendimento.length === 0 ? (
-                <div className="info-box info-warning">
-                  <p>
-                    <strong>Atenção:</strong> Não há tipos de atendimento cadastrados.
-                    Configure os tipos antes de gerenciar capacitações.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="info-box">
-                    <p>
-                      Selecione os tipos de atendimento em que <strong>{selectedTrabalhador.nome}</strong> pode atuar:
-                    </p>
-                  </div>
-
-                  <div className="tipos-checkboxes">
-                    {tiposAtendimento.map(tipo => (
-                      <label key={tipo.id} className="checkbox-item">
-                        <input
-                          type="checkbox"
-                          checked={selectedTipos.includes(tipo.id)}
-                          onChange={() => toggleTipo(tipo.id)}
-                        />
-                        <span>{tipo.nome}</span>
-                        <span className="tipo-info">
-                          ({tipo.qtd_pessoas_necessarias} {tipo.qtd_pessoas_necessarias === 1 ? 'pessoa' : 'pessoas'})
-                        </span>
-                      </label>
+      <Modal
+        title={`Editar Capacitações - ${selectedTrabalhador?.nome_completo}`}
+        open={showModal && selectedTrabalhador !== null}
+        onCancel={() => setShowModal(false)}
+        onOk={handleSave}
+        okText={<><CheckCircleOutlined /> Salvar Alterações</>}
+        cancelText="Cancelar"
+        width={800}
+      >
+        {selectedTrabalhador && (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {tiposAtendimento.length === 0 ? (
+              <Card>
+                <Empty description="Não há tipos de atendimento cadastrados. Configure os tipos antes de gerenciar capacitações." />
+              </Card>
+            ) : (
+              <>
+                {capacitacoesEdit.length === 0 ? (
+                  <Card>
+                    <Empty
+                      image={<TrophyOutlined style={{ fontSize: 48, color: '#d1d5db' }} />}
+                      description={
+                        <Space direction="vertical" size="small">
+                          <Text type="secondary">Nenhuma capacitação cadastrada</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Clique em "Adicionar Capacitação" para começar
+                          </Text>
+                        </Space>
+                      }
+                    />
+                  </Card>
+                ) : (
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                    {capacitacoesEdit.map((cap, index) => (
+                      <Card
+                        key={cap.id || index}
+                        type="inner"
+                        title={`Capacitação #${index + 1}`}
+                        extra={
+                          <Button
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveCapacitacao(index)}
+                          >
+                            Remover
+                          </Button>
+                        }
+                        style={{ borderRadius: 8 }}
+                      >
+                        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                          <Row gutter={16}>
+                            <Col span={12}>
+                              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                                Tipo de Atendimento: *
+                              </Text>
+                              <Select
+                                value={cap.tipo_atendimento_id || undefined}
+                                onChange={(value) => handleUpdateCapacitacao(index, 'tipo_atendimento_id', value)}
+                                placeholder="Selecione..."
+                                style={{ width: '100%' }}
+                                size="large"
+                                showSearch
+                                optionFilterProp="children"
+                              >
+                                {tiposAtendimento.map(tipo => (
+                                  <Option key={tipo.id} value={tipo.id}>
+                                    {tipo.nome} ({tipo.qtd_pessoas_necessarias} pessoas)
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Col>
+                            <Col span={6}>
+                              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                                Nível: *
+                              </Text>
+                              <Select
+                                value={cap.nivel_experiencia}
+                                onChange={(value) => handleUpdateCapacitacao(index, 'nivel_experiencia', value)}
+                                style={{ width: '100%' }}
+                                size="large"
+                              >
+                                {NIVEIS_EXPERIENCIA.map(nivel => (
+                                  <Option key={nivel.value} value={nivel.value}>
+                                    {nivel.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Col>
+                            <Col span={6}>
+                              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                                Prioridade: *
+                              </Text>
+                              <Select
+                                value={cap.preferencia_prioridade}
+                                onChange={(value) => handleUpdateCapacitacao(index, 'preferencia_prioridade', value)}
+                                style={{ width: '100%' }}
+                                size="large"
+                              >
+                                {PRIORIDADES.map(prioridade => (
+                                  <Option key={prioridade.value} value={prioridade.value}>
+                                    {prioridade.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                              <Text type="secondary" style={{ fontSize: 11 }}>
+                                Alta = preferência forte
+                              </Text>
+                            </Col>
+                          </Row>
+                          <div>
+                            <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                              Observações:
+                            </Text>
+                            <TextArea
+                              value={cap.observacoes || ''}
+                              onChange={(e) => handleUpdateCapacitacao(index, 'observacoes', e.target.value)}
+                              placeholder="Ex: Disponível apenas às sextas, Precisa de mais treinamento, etc."
+                              rows={2}
+                            />
+                          </div>
+                        </Space>
+                      </Card>
                     ))}
-                  </div>
-                </>
-              )}
-            </div>
+                  </Space>
+                )}
 
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowModal(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={tiposAtendimento.length === 0}
-              >
-                <CheckCircle size={20} />
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddCapacitacao}
+                  block
+                  size="large"
+                >
+                  Adicionar Capacitação
+                </Button>
+              </>
+            )}
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar, Plus, Save, Printer, ChevronLeft, ChevronRight, Users, CheckCircle } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from './index';
-import { ConfirmModal } from './Modal';
-import './PresencaManager.css';
+import {
+  CalendarOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  PrinterOutlined,
+  LeftOutlined,
+  RightOutlined,
+  TeamOutlined,
+  CheckCircleOutlined
+} from '@ant-design/icons';
+import { Card, Button, Select, Input, Modal, message, Space, Typography, Row, Col, Statistic } from 'antd';
+
+const { Title, Text } = Typography;
 
 function PresencaManager({ userProfile }) {
   const [view, setView] = useState('list'); // 'list' ou 'registro'
@@ -17,11 +25,19 @@ function PresencaManager({ userProfile }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showNovaGiraModal, setShowNovaGiraModal] = useState(false);
   const [novaGiraData, setNovaGiraData] = useState('');
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadData = async () => {
@@ -47,7 +63,7 @@ function PresencaManager({ userProfile }) {
       setGiras(data || []);
     } catch (error) {
       console.error('Erro ao carregar giras:', error);
-      showToast.error('Erro ao carregar giras');
+      message.error('Erro ao carregar giras');
     }
   };
 
@@ -63,7 +79,7 @@ function PresencaManager({ userProfile }) {
       setTrabalhadores(data || []);
     } catch (error) {
       console.error('Erro ao carregar trabalhadores:', error);
-      showToast.error('Erro ao carregar trabalhadores');
+      message.error('Erro ao carregar trabalhadores');
     }
   };
 
@@ -85,7 +101,7 @@ function PresencaManager({ userProfile }) {
       setPresencas(presencasMap);
     } catch (error) {
       console.error('Erro ao carregar presenças:', error);
-      showToast.error('Erro ao carregar presenças');
+      message.error('Erro ao carregar presenças');
     }
   };
 
@@ -97,14 +113,14 @@ function PresencaManager({ userProfile }) {
 
   const handleNovaGira = async () => {
     if (!novaGiraData) {
-      showToast.error('Selecione uma data');
+      message.error('Selecione uma data');
       return;
     }
 
     const diaSemana = getDiaSemana(novaGiraData);
 
     if (!diaSemana) {
-      showToast.error('A data deve ser uma Segunda ou Sexta-feira');
+      message.error('A data deve ser uma Segunda ou Sexta-feira');
       return;
     }
 
@@ -124,7 +140,7 @@ function PresencaManager({ userProfile }) {
 
       if (error) throw error;
 
-      showToast.success('Gira criada com sucesso!');
+      message.success('Gira criada com sucesso!');
       setShowNovaGiraModal(false);
       setNovaGiraData('');
       loadGiras();
@@ -134,9 +150,9 @@ function PresencaManager({ userProfile }) {
     } catch (error) {
       console.error('Erro ao criar gira:', error);
       if (error.code === '23505') {
-        showToast.error('Já existe uma gira cadastrada para esta data');
+        message.error('Já existe uma gira cadastrada para esta data');
       } else {
-        showToast.error('Erro ao criar gira: ' + error.message);
+        message.error('Erro ao criar gira: ' + error.message);
       }
     }
   };
@@ -214,12 +230,12 @@ function PresencaManager({ userProfile }) {
 
       if (updateError) throw updateError;
 
-      showToast.success('Presenças salvas com sucesso!');
+      message.success('Presenças salvas com sucesso!');
       loadGiras();
       setView('list');
     } catch (error) {
       console.error('Erro ao salvar presenças:', error);
-      showToast.error('Erro ao salvar presenças: ' + error.message);
+      message.error('Erro ao salvar presenças: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -364,7 +380,17 @@ function PresencaManager({ userProfile }) {
   };
 
   if (loading) {
-    return <div className="loading">Carregando...</div>;
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '400px',
+        fontSize: isMobile ? '16px' : '18px'
+      }}>
+        Carregando...
+      </div>
+    );
   }
 
   // VIEW: Lista de Giras
@@ -375,220 +401,398 @@ function PresencaManager({ userProfile }) {
              giraDate.getFullYear() === currentMonth.getFullYear();
     });
 
+    const getStatusColor = (status) => {
+      if (status === 'planejada') return '#1890ff';
+      if (status === 'realizada') return '#52c41a';
+      return '#d9d9d9';
+    };
+
+    const getStatusBgColor = (status) => {
+      if (status === 'planejada') return '#e6f7ff';
+      if (status === 'realizada') return '#f6ffed';
+      return '#fafafa';
+    };
+
     return (
-      <div className="presenca-manager">
-        <Toaster position="top-right" />
-
-        <div className="manager-header">
-          <h2>Controle de Presença</h2>
-          <button className="btn-primary" onClick={() => setShowNovaGiraModal(true)}>
-            <Plus size={20} />
+      <div style={{ padding: isMobile ? '16px' : '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMobile ? '20px' : '32px',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <Title level={isMobile ? 3 : 2} style={{ margin: 0, fontSize: isMobile ? '20px' : '28px' }}>
+            Controle de Presença
+          </Title>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setShowNovaGiraModal(true)}
+            size={isMobile ? 'middle' : 'large'}
+            style={{ borderRadius: '8px' }}
+          >
             Nova Gira
-          </button>
+          </Button>
         </div>
 
-        <div className="month-navigator">
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}>
-            <ChevronLeft size={20} />
-          </button>
-          <h3>
-            {currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-          </h3>
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}>
-            <ChevronRight size={20} />
-          </button>
-        </div>
+        <Card
+          style={{
+            marginBottom: '24px',
+            borderRadius: '16px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+          bodyStyle={{ padding: isMobile ? '16px' : '24px' }}
+        >
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <Button
+              icon={<LeftOutlined />}
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ borderRadius: '8px' }}
+            />
+            <Title level={isMobile ? 4 : 3} style={{ margin: 0, textAlign: 'center', fontSize: isMobile ? '16px' : '20px' }}>
+              {currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+            </Title>
+            <Button
+              icon={<RightOutlined />}
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ borderRadius: '8px' }}
+            />
+          </div>
+        </Card>
 
-        <div className="giras-list">
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {girasDoMes.length === 0 ? (
-            <div className="empty-state">
-              <Calendar size={48} />
-              <p>Nenhuma gira cadastrada neste mês</p>
-              <button className="btn-secondary" onClick={() => setShowNovaGiraModal(true)}>
-                <Plus size={18} />
+            <Card
+              style={{
+                borderRadius: '16px',
+                textAlign: 'center',
+                padding: isMobile ? '32px 16px' : '48px 24px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              }}
+            >
+              <CalendarOutlined style={{ fontSize: isMobile ? '40px' : '48px', color: '#d9d9d9', marginBottom: '16px' }} />
+              <Title level={4} style={{ fontSize: isMobile ? '16px' : '18px' }}>Nenhuma gira cadastrada neste mês</Title>
+              <Button
+                type="default"
+                icon={<PlusOutlined />}
+                onClick={() => setShowNovaGiraModal(true)}
+                size={isMobile ? 'middle' : 'large'}
+                style={{ marginTop: '16px', borderRadius: '8px' }}
+              >
                 Criar primeira gira
-              </button>
-            </div>
+              </Button>
+            </Card>
           ) : (
             girasDoMes.map(gira => (
-              <div key={gira.id} className={`gira-card ${gira.status}`}>
-                <div className="gira-card-header">
-                  <div className="gira-info">
-                    <h3>{new Date(gira.data).toLocaleDateString('pt-BR', {
-                      weekday: 'long',
-                      day: '2-digit',
-                      month: 'long'
-                    })}</h3>
-                    <p>{gira.horario_inicio} às {gira.horario_fim}</p>
-                  </div>
-                  <span className={`status-badge ${gira.status}`}>
-                    {gira.status === 'planejada' ? 'Planejada' :
-                     gira.status === 'realizada' ? 'Realizada' : 'Cancelada'}
-                  </span>
-                </div>
-                <div className="gira-card-actions">
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleRegistrarPresenca(gira)}
-                  >
-                    <Users size={18} />
-                    {gira.status === 'realizada' ? 'Ver Presença' : 'Registrar Presença'}
-                  </button>
-                </div>
-              </div>
+              <Card
+                key={gira.id}
+                style={{
+                  borderRadius: '16px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  borderLeft: `4px solid ${getStatusColor(gira.status)}`,
+                  backgroundColor: getStatusBgColor(gira.status)
+                }}
+                bodyStyle={{ padding: isMobile ? '16px' : '24px' }}
+              >
+                <Row gutter={[16, 16]} align="middle">
+                  <Col xs={24} sm={14} md={16}>
+                    <div>
+                      <Title level={isMobile ? 5 : 4} style={{ margin: 0, marginBottom: '8px', fontSize: isMobile ? '16px' : '18px' }}>
+                        {new Date(gira.data).toLocaleDateString('pt-BR', {
+                          weekday: 'long',
+                          day: '2-digit',
+                          month: 'long'
+                        }).replace(/^\w/, c => c.toUpperCase())}
+                      </Title>
+                      <Text type="secondary" style={{ fontSize: isMobile ? '13px' : '14px' }}>
+                        {gira.horario_inicio} às {gira.horario_fim}
+                      </Text>
+                    </div>
+                  </Col>
+                  <Col xs={12} sm={6} md={4} style={{ textAlign: isMobile ? 'left' : 'center' }}>
+                    <div style={{
+                      display: 'inline-block',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: getStatusColor(gira.status),
+                      color: 'white',
+                      fontSize: isMobile ? '12px' : '13px',
+                      fontWeight: '500'
+                    }}>
+                      {gira.status === 'planejada' ? 'Planejada' :
+                       gira.status === 'realizada' ? 'Realizada' : 'Cancelada'}
+                    </div>
+                  </Col>
+                  <Col xs={12} sm={4} md={4} style={{ textAlign: 'right' }}>
+                    <Button
+                      type="primary"
+                      icon={<TeamOutlined />}
+                      onClick={() => handleRegistrarPresenca(gira)}
+                      size={isMobile ? 'middle' : 'large'}
+                      style={{ borderRadius: '8px' }}
+                      block={isMobile}
+                    >
+                      {isMobile ? (gira.status === 'realizada' ? 'Ver' : 'Registrar') : (gira.status === 'realizada' ? 'Ver Presença' : 'Registrar Presença')}
+                    </Button>
+                  </Col>
+                </Row>
+              </Card>
             ))
           )}
-        </div>
+        </Space>
 
-        {/* Modal Nova Gira */}
-        {showNovaGiraModal && (
-          <div className="modal-overlay" onClick={() => setShowNovaGiraModal(false)}>
-            <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3><Plus size={20} /> Nova Gira</h3>
-              </div>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Data da Gira *</label>
-                  <input
-                    type="date"
-                    value={novaGiraData}
-                    onChange={(e) => setNovaGiraData(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                  <small>Selecione uma Segunda ou Sexta-feira</small>
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowNovaGiraModal(false)}>
-                  Cancelar
-                </button>
-                <button className="btn-primary" onClick={handleNovaGira}>
-                  Criar Gira
-                </button>
-              </div>
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <PlusOutlined />
+              <span>Nova Gira</span>
             </div>
-          </div>
-        )}
+          }
+          open={showNovaGiraModal}
+          onCancel={() => setShowNovaGiraModal(false)}
+          onOk={handleNovaGira}
+          okText="Criar Gira"
+          cancelText="Cancelar"
+          width={isMobile ? '90%' : 500}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <div>
+              <Text strong>Data da Gira *</Text>
+              <Input
+                type="date"
+                value={novaGiraData}
+                onChange={(e) => setNovaGiraData(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                style={{ marginTop: '8px', borderRadius: '8px' }}
+                size="large"
+              />
+              <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '8px' }}>
+                Selecione uma Segunda ou Sexta-feira
+              </Text>
+            </div>
+          </Space>
+        </Modal>
       </div>
     );
   }
 
   // VIEW: Registro de Presença
+  const getStatusColor = (status) => {
+    if (status === 'P') return '#52c41a';
+    if (status === 'F') return '#ff4d4f';
+    if (status === 'J') return '#faad14';
+    if (status === 'A') return '#d9d9d9';
+    return '#d9d9d9';
+  };
+
+  const getStatusBgColor = (status) => {
+    if (status === 'P') return '#f6ffed';
+    if (status === 'F') return '#fff1f0';
+    if (status === 'J') return '#fffbe6';
+    if (status === 'A') return '#fafafa';
+    return '#ffffff';
+  };
+
+  const totalPresentes = trabalhadores.filter(t => {
+    const status = presencas[t.id]?.status_presenca || (presencas[t.id]?.presente ? 'P' : 'F');
+    return status === 'P';
+  }).length;
+
+  const totalJustificadas = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'J').length;
+  const totalFaltas = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'F').length;
+  const totalAfastados = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'A').length;
+
   return (
-    <div className="presenca-manager">
-      <Toaster position="top-right" />
+    <div style={{ padding: isMobile ? '16px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>
+      <Card
+        style={{
+          marginBottom: '24px',
+          borderRadius: '16px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
+        bodyStyle={{ padding: isMobile ? '16px' : '24px' }}
+      >
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} sm={8} md={6}>
+            <Button
+              icon={<LeftOutlined />}
+              onClick={() => setView('list')}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ borderRadius: '8px' }}
+              block={isMobile}
+            >
+              Voltar
+            </Button>
+          </Col>
+          <Col xs={24} sm={16} md={12} style={{ textAlign: isMobile ? 'left' : 'center' }}>
+            <Title level={isMobile ? 4 : 3} style={{ margin: 0, marginBottom: '4px', fontSize: isMobile ? '18px' : '22px' }}>
+              {new Date(selectedGira.data).toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+              }).replace(/^\w/, c => c.toUpperCase())}
+            </Title>
+            <Text type="secondary" style={{ fontSize: isMobile ? '13px' : '14px' }}>
+              {selectedGira.horario_inicio} às {selectedGira.horario_fim}
+            </Text>
+          </Col>
+          <Col xs={24} sm={24} md={6} style={{ textAlign: isMobile ? 'left' : 'right' }}>
+            <Space size="middle" wrap>
+              <Button
+                icon={<PrinterOutlined />}
+                onClick={handleImprimirLista}
+                size={isMobile ? 'middle' : 'large'}
+                style={{ borderRadius: '8px' }}
+              >
+                {!isMobile && 'Imprimir'}
+              </Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSalvarPresencas}
+                loading={saving}
+                size={isMobile ? 'middle' : 'large'}
+                style={{ borderRadius: '8px' }}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
-      <div className="registro-header">
-        <button className="btn-back" onClick={() => setView('list')}>
-          <ChevronLeft size={20} />
-          Voltar
-        </button>
-        <div className="registro-info">
-          <h2>{new Date(selectedGira.data).toLocaleDateString('pt-BR', {
-            weekday: 'long',
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-          })}</h2>
-          <p>{selectedGira.horario_inicio} às {selectedGira.horario_fim}</p>
-        </div>
-        <div className="registro-actions">
-          <button className="btn-secondary" onClick={handleImprimirLista}>
-            <Printer size={18} />
-            Imprimir
-          </button>
-          <button
-            className="btn-primary"
-            onClick={handleSalvarPresencas}
-            disabled={saving}
-          >
-            <Save size={18} />
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: '16px', textAlign: 'center' }}>
+            <Statistic
+              title="Total"
+              value={trabalhadores.length}
+              valueStyle={{ fontSize: isMobile ? '24px' : '32px', color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: '16px', textAlign: 'center' }}>
+            <Statistic
+              title="Presentes"
+              value={totalPresentes}
+              valueStyle={{ fontSize: isMobile ? '24px' : '32px', color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: '16px', textAlign: 'center' }}>
+            <Statistic
+              title="Justificadas"
+              value={totalJustificadas}
+              valueStyle={{ fontSize: isMobile ? '24px' : '32px', color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: '16px', textAlign: 'center' }}>
+            <Statistic
+              title="Faltas"
+              value={totalFaltas}
+              valueStyle={{ fontSize: isMobile ? '24px' : '32px', color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="presenca-list">
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         {trabalhadores.map(trabalhador => {
           const presenca = presencas[trabalhador.id] || { status_presenca: 'F', presente: false };
           const status = presenca.status_presenca || (presenca.presente ? 'P' : 'F');
           const isPresente = status === 'P';
 
           return (
-            <div key={trabalhador.id} className={`presenca-item ${isPresente ? 'presente' : 'ausente'} status-${status}`}>
-              <div className="presenca-status">
-                <select
-                  value={status}
-                  onChange={(e) => handleChangeStatusPresenca(trabalhador.id, e.target.value)}
-                  className={`status-select status-${status}`}
-                >
-                  <option value="P">✓ Presente</option>
-                  <option value="F">✗ Falta</option>
-                  <option value="J">⚠ Justificada</option>
-                  <option value="A">⊗ Afastado</option>
-                </select>
-              </div>
-
-              <div className="presenca-info">
-                <strong>
-                  {trabalhador.numero && <span className="trabalhador-numero">#{trabalhador.numero}</span>}
-                  {trabalhador.nome_completo}
-                </strong>
-                <span>
-                  {trabalhador.funcao_permanente && <span className="funcao-permanente">{trabalhador.funcao_permanente}</span>}
-                  {trabalhador.telefone && <span>{trabalhador.telefone}</span>}
-                </span>
-              </div>
-
-              {!isPresente && (
-                <div className="presenca-justificativa">
-                  <input
-                    type="text"
-                    placeholder="Justificativa (opcional)"
-                    value={presenca.justificativa_ausencia || ''}
-                    onChange={(e) => handleChangeJustificativa(trabalhador.id, e.target.value)}
+            <Card
+              key={trabalhador.id}
+              style={{
+                borderRadius: '16px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                borderLeft: `4px solid ${getStatusColor(status)}`,
+                backgroundColor: getStatusBgColor(status)
+              }}
+              bodyStyle={{ padding: isMobile ? '12px 16px' : '16px 24px' }}
+            >
+              <Row gutter={[16, 16]} align="middle">
+                <Col xs={24} sm={8} md={6}>
+                  <Select
+                    value={status}
+                    onChange={(value) => handleChangeStatusPresenca(trabalhador.id, value)}
+                    style={{
+                      width: '100%',
+                      borderRadius: '8px'
+                    }}
+                    size={isMobile ? 'middle' : 'large'}
+                    options={[
+                      { value: 'P', label: '✓ Presente' },
+                      { value: 'F', label: '✗ Falta' },
+                      { value: 'J', label: '⚠ Justificada' },
+                      { value: 'A', label: '⊗ Afastado' }
+                    ]}
                   />
-                </div>
-              )}
-            </div>
+                </Col>
+                <Col xs={24} sm={16} md={!isPresente ? 8 : 18}>
+                  <div>
+                    <Text strong style={{ fontSize: isMobile ? '15px' : '16px', display: 'block' }}>
+                      {trabalhador.numero && (
+                        <span style={{
+                          display: 'inline-block',
+                          backgroundColor: '#1890ff',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: isMobile ? '11px' : '12px',
+                          marginRight: '8px'
+                        }}>
+                          #{trabalhador.numero}
+                        </span>
+                      )}
+                      {trabalhador.nome_completo}
+                    </Text>
+                    <Space size="small" wrap style={{ marginTop: '4px' }}>
+                      {trabalhador.funcao_permanente && (
+                        <Text type="secondary" style={{ fontSize: isMobile ? '12px' : '13px' }}>
+                          {trabalhador.funcao_permanente}
+                        </Text>
+                      )}
+                      {trabalhador.telefone && (
+                        <Text type="secondary" style={{ fontSize: isMobile ? '12px' : '13px' }}>
+                          {trabalhador.telefone}
+                        </Text>
+                      )}
+                    </Space>
+                  </div>
+                </Col>
+                {!isPresente && (
+                  <Col xs={24} sm={24} md={10}>
+                    <Input
+                      placeholder="Justificativa (opcional)"
+                      value={presenca.justificativa_ausencia || ''}
+                      onChange={(e) => handleChangeJustificativa(trabalhador.id, e.target.value)}
+                      style={{ borderRadius: '8px' }}
+                      size={isMobile ? 'middle' : 'large'}
+                    />
+                  </Col>
+                )}
+              </Row>
+            </Card>
           );
         })}
-      </div>
-
-      <div className="presenca-summary">
-        <div className="summary-item">
-          <span className="summary-label">Total</span>
-          <span className="summary-value">{trabalhadores.length}</span>
-        </div>
-        <div className="summary-item presente">
-          <span className="summary-label">Presente</span>
-          <span className="summary-value">
-            {trabalhadores.filter(t => {
-              const status = presencas[t.id]?.status_presenca || (presencas[t.id]?.presente ? 'P' : 'F');
-              return status === 'P';
-            }).length}
-          </span>
-        </div>
-        <div className="summary-item justificado">
-          <span className="summary-label">Justificada</span>
-          <span className="summary-value">
-            {trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'J').length}
-          </span>
-        </div>
-        <div className="summary-item faltou">
-          <span className="summary-label">Falta</span>
-          <span className="summary-value">
-            {trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'F').length}
-          </span>
-        </div>
-        <div className="summary-item ausente">
-          <span className="summary-label">Afastado</span>
-          <span className="summary-value">
-            {trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'A').length}
-          </span>
-        </div>
-      </div>
+      </Space>
     </div>
   );
 }

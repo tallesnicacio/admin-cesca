@@ -1,10 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar, Download, TrendingUp, Users, Award, BarChart2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from './index';
-import './PresencaReports.css';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  DatePicker,
+  Button,
+  Space,
+  Tag,
+  Progress,
+  Modal,
+  Descriptions,
+  Timeline,
+  Empty,
+  Spin,
+  Typography,
+  message
+} from 'antd';
+import {
+  DownloadOutlined,
+  CalendarOutlined,
+  TrophyOutlined,
+  UserOutlined,
+  BarChartOutlined,
+  RiseOutlined,
+  CloseOutlined,
+  EyeOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+
+dayjs.locale('pt-br');
+
+const { RangePicker } = DatePicker;
+const { Title, Text } = Typography;
 
 function PresencaReports() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +46,7 @@ function PresencaReports() {
   const [detalhes, setDetalhes] = useState(null);
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -41,7 +74,7 @@ function PresencaReports() {
       setEstatisticas(data || []);
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
-      showToast.error('Erro ao carregar estatísticas');
+      message.error('Erro ao carregar estatísticas');
     }
   };
 
@@ -64,7 +97,7 @@ function PresencaReports() {
       setGiras(data || []);
     } catch (error) {
       console.error('Erro ao carregar giras:', error);
-      showToast.error('Erro ao carregar giras');
+      message.error('Erro ao carregar giras');
     }
   };
 
@@ -108,9 +141,10 @@ function PresencaReports() {
         trabalhador,
         presencas: presencas || []
       });
+      setModalVisible(true);
     } catch (error) {
       console.error('Erro ao carregar detalhes:', error);
-      showToast.error('Erro ao carregar detalhes');
+      message.error('Erro ao carregar detalhes');
     }
   };
 
@@ -122,6 +156,7 @@ function PresencaReports() {
   const handleFecharDetalhes = () => {
     setSelectedTrabalhador(null);
     setDetalhes(null);
+    setModalVisible(false);
   };
 
   const exportarExcel = () => {
@@ -154,12 +189,18 @@ function PresencaReports() {
     XLSX.utils.book_append_sheet(wb, ws2, 'Giras');
 
     XLSX.writeFile(wb, `relatorio_presenca_${new Date().toISOString().split('T')[0]}.xlsx`);
-    showToast.success('Relatório exportado com sucesso!');
+    message.success('Relatório exportado com sucesso!');
   };
 
-  if (loading) {
-    return <div className="loading">Carregando relatórios...</div>;
-  }
+  const handleDateChange = (dates) => {
+    if (dates && dates.length === 2) {
+      setFiltroDataInicio(dates[0].format('YYYY-MM-DD'));
+      setFiltroDataFim(dates[1].format('YYYY-MM-DD'));
+    } else {
+      setFiltroDataInicio('');
+      setFiltroDataFim('');
+    }
+  };
 
   const totalTrabalhadores = estatisticas.length;
   const totalGiras = giras.length;
@@ -167,272 +208,361 @@ function PresencaReports() {
     ? (estatisticas.reduce((acc, e) => acc + parseFloat(e.percentual_presenca), 0) / estatisticas.length).toFixed(2)
     : 0;
 
+  const columns = [
+    {
+      title: '#',
+      key: 'rank',
+      width: 80,
+      fixed: 'left',
+      render: (_, __, index) => (
+        <Space>
+          <Text strong>{index + 1}</Text>
+          {index === 0 && <TrophyOutlined style={{ color: '#FFD700', fontSize: 18 }} />}
+          {index === 1 && <TrophyOutlined style={{ color: '#C0C0C0', fontSize: 18 }} />}
+          {index === 2 && <TrophyOutlined style={{ color: '#CD7F32', fontSize: 18 }} />}
+        </Space>
+      )
+    },
+    {
+      title: 'Nº',
+      dataIndex: 'numero',
+      key: 'numero',
+      width: 60,
+      render: (numero) => <Text strong>{numero || '-'}</Text>
+    },
+    {
+      title: 'Nome',
+      dataIndex: 'nome_completo',
+      key: 'nome_completo',
+      width: 200,
+      fixed: 'left',
+      render: (nome, record) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{nome}</Text>
+          <Tag color={record.status === 'ativo' ? 'success' : record.status === 'afastado' ? 'warning' : 'default'}>
+            {record.status === 'ativo' ? 'Ativo' : record.status === 'afastado' ? 'Afastado' : 'Inativo'}
+          </Tag>
+        </Space>
+      )
+    },
+    {
+      title: 'Grupo',
+      dataIndex: 'grupo',
+      key: 'grupo',
+      width: 120,
+      render: (grupo) => (
+        <Tag color={grupo === 'Direção' ? 'purple' : 'green'}>
+          {grupo || '-'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Função',
+      dataIndex: 'funcao_permanente',
+      key: 'funcao_permanente',
+      width: 150,
+      render: (funcao) => funcao || '-'
+    },
+    {
+      title: 'Presentes (AP)',
+      dataIndex: 'presencas',
+      key: 'presencas',
+      width: 120,
+      align: 'center',
+      render: (value) => <Tag color="success">{value || 0}</Tag>
+    },
+    {
+      title: 'Justificadas (J)',
+      dataIndex: 'justificadas',
+      key: 'justificadas',
+      width: 130,
+      align: 'center',
+      render: (value) => <Tag color="warning">{value || 0}</Tag>
+    },
+    {
+      title: 'Faltas (F)',
+      dataIndex: 'faltas',
+      key: 'faltas',
+      width: 100,
+      align: 'center',
+      render: (value) => <Tag color="error">{value || 0}</Tag>
+    },
+    {
+      title: 'Ausências (A)',
+      dataIndex: 'ausencias_afastamento',
+      key: 'ausencias_afastamento',
+      width: 120,
+      align: 'center',
+      render: (value) => <Tag color="default">{value || 0}</Tag>
+    },
+    {
+      title: '% Presença',
+      dataIndex: 'percentual_presenca',
+      key: 'percentual_presenca',
+      width: 150,
+      align: 'center',
+      sorter: (a, b) => parseFloat(a.percentual_presenca) - parseFloat(b.percentual_presenca),
+      render: (percent) => {
+        const value = parseFloat(percent);
+        let status = 'exception';
+        if (value >= 80) status = 'success';
+        else if (value >= 50) status = 'normal';
+
+        return (
+          <div style={{ width: '100%' }}>
+            <Progress
+              percent={value}
+              status={status}
+              strokeColor={
+                value >= 80 ? '#52c41a' : value >= 50 ? '#faad14' : '#ff4d4f'
+              }
+            />
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Advertências',
+      dataIndex: 'total_advertencias',
+      key: 'total_advertencias',
+      width: 120,
+      align: 'center',
+      render: (value) =>
+        value > 0 ? (
+          <Tag color="error">{value}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 120,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={() => handleVerDetalhes(record)}
+        >
+          Detalhes
+        </Button>
+      )
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" tip="Carregando relatórios..." />
+      </div>
+    );
+  }
+
   return (
-    <div className="presenca-reports">
-      <Toaster position="top-right" />
-
-      <div className="reports-header">
-        <h2>Relatórios de Presença</h2>
-        <div className="reports-actions">
-          <button className="btn-primary" onClick={exportarExcel}>
-            <Download size={18} />
-            Exportar Excel
-          </button>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="reports-filters">
-        <div className="filter-group">
-          <label>
-            <Calendar size={16} />
-            Data Início
-          </label>
-          <input
-            type="date"
-            value={filtroDataInicio}
-            onChange={(e) => setFiltroDataInicio(e.target.value)}
-          />
-        </div>
-        <div className="filter-group">
-          <label>
-            <Calendar size={16} />
-            Data Fim
-          </label>
-          <input
-            type="date"
-            value={filtroDataFim}
-            onChange={(e) => setFiltroDataFim(e.target.value)}
-          />
-        </div>
-        {(filtroDataInicio || filtroDataFim) && (
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              setFiltroDataInicio('');
-              setFiltroDataFim('');
-            }}
+    <div style={{ padding: '24px' }}>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+        <Col>
+          <Title level={2} style={{ margin: 0 }}>
+            <BarChartOutlined /> Relatórios de Presença
+          </Title>
+        </Col>
+        <Col>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={exportarExcel}
+            size="large"
           >
-            Limpar Filtros
-          </button>
-        )}
-      </div>
+            Exportar Excel
+          </Button>
+        </Col>
+      </Row>
 
-      {/* Cards de Estatísticas Gerais */}
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            <Users size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>{totalTrabalhadores}</h3>
-            <p>Trabalhadores</p>
-          </div>
-        </div>
+      <Card style={{ marginBottom: 24 }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} sm={24} md={18} lg={18}>
+              <Space wrap>
+                <CalendarOutlined />
+                <Text strong>Período:</Text>
+                <RangePicker
+                  value={filtroDataInicio && filtroDataFim ? [dayjs(filtroDataInicio), dayjs(filtroDataFim)] : null}
+                  onChange={handleDateChange}
+                  format="DD/MM/YYYY"
+                  placeholder={['Data Início', 'Data Fim']}
+                />
+              </Space>
+            </Col>
+          </Row>
+        </Space>
+      </Card>
 
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-            <Calendar size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>{totalGiras}</h3>
-            <p>Giras Realizadas</p>
-          </div>
-        </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8} md={8} lg={8}>
+          <Card>
+            <Statistic
+              title="Trabalhadores"
+              value={totalTrabalhadores}
+              prefix={<UserOutlined />}
+              valueStyle={{
+                color: '#667eea',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8} md={8} lg={8}>
+          <Card>
+            <Statistic
+              title="Giras Realizadas"
+              value={totalGiras}
+              prefix={<CalendarOutlined />}
+              valueStyle={{
+                color: '#f093fb',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8} md={8} lg={8}>
+          <Card>
+            <Statistic
+              title="Média de Presença"
+              value={mediaPresenca}
+              prefix={<RiseOutlined />}
+              suffix="%"
+              valueStyle={{
+                color: '#4facfe',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-            <TrendingUp size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>{mediaPresenca}%</h3>
-            <p>Média de Presença</p>
-          </div>
-        </div>
-      </div>
+      <Card
+        title={
+          <Space>
+            <BarChartOutlined />
+            <Text strong>Ranking de Presença</Text>
+          </Space>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={estatisticas}
+          rowKey="trabalhador_id"
+          scroll={{ x: 1500 }}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showTotal: (total) => `Total de ${total} trabalhadores`
+          }}
+          locale={{
+            emptyText: <Empty description="Nenhum dado disponível no período selecionado" />
+          }}
+          rowClassName={(record) =>
+            parseFloat(record.percentual_presenca) >= 80 ? 'highlight-row' : ''
+          }
+        />
+      </Card>
 
-      {/* Ranking de Presença */}
-      <div className="reports-section">
-        <div className="section-header">
-          <h3>
-            <BarChart2 size={20} />
-            Ranking de Presença
-          </h3>
-        </div>
+      <Modal
+        title={
+          <Space>
+            <UserOutlined />
+            Detalhes - {detalhes?.trabalhador?.nome_completo}
+          </Space>
+        }
+        open={modalVisible}
+        onCancel={handleFecharDetalhes}
+        footer={[
+          <Button key="close" type="primary" onClick={handleFecharDetalhes} icon={<CloseOutlined />}>
+            Fechar
+          </Button>
+        ]}
+        width={800}
+        closeIcon={<CloseOutlined />}
+      >
+        {detalhes && (
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Descriptions bordered column={{ xs: 1, sm: 2, md: 2 }}>
+              <Descriptions.Item label="Telefone">
+                {detalhes.trabalhador.telefone || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email">
+                {detalhes.trabalhador.email || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={
+                  detalhes.trabalhador.status === 'ativo' ? 'success' :
+                  detalhes.trabalhador.status === 'afastado' ? 'warning' : 'default'
+                }>
+                  {detalhes.trabalhador.status}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
 
-        <div className="ranking-table">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nº</th>
-                <th>Nome</th>
-                <th>Grupo</th>
-                <th>Função</th>
-                <th className="center">Presentes (AP)</th>
-                <th className="center">Justificadas (J)</th>
-                <th className="center">Faltas (F)</th>
-                <th className="center">Ausências (A)</th>
-                <th className="center">% Presença</th>
-                <th className="center">Advertências</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {estatisticas.map((trab, index) => (
-                <tr key={trab.trabalhador_id} className={parseFloat(trab.percentual_presenca) >= 80 ? 'destaque' : ''}>
-                  <td>
-                    <div className="ranking-position">
-                      {index + 1}
-                      {index === 0 && <span className="medal gold">🥇</span>}
-                      {index === 1 && <span className="medal silver">🥈</span>}
-                      {index === 2 && <span className="medal bronze">🥉</span>}
-                    </div>
-                  </td>
-                  <td><strong>{trab.numero || '-'}</strong></td>
-                  <td>
-                    <strong>{trab.nome_completo}</strong>
-                    <span className={`status-badge ${trab.status}`}>
-                      {trab.status === 'ativo' ? 'Ativo' : trab.status === 'afastado' ? 'Afastado' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="badge" style={{
-                      background: trab.grupo === 'Direção' ? '#667eea' : '#10b981',
-                      color: '#fff'
-                    }}>
-                      {trab.grupo || '-'}
-                    </span>
-                  </td>
-                  <td>{trab.funcao_permanente || '-'}</td>
-                  <td className="center">
-                    <span className="badge success">{trab.presencas || 0}</span>
-                  </td>
-                  <td className="center">
-                    <span className="badge warning">{trab.justificadas || 0}</span>
-                  </td>
-                  <td className="center">
-                    <span className="badge danger">{trab.faltas || 0}</span>
-                  </td>
-                  <td className="center">
-                    <span className="badge secondary">{trab.ausencias_afastamento || 0}</span>
-                  </td>
-                  <td className="center">
-                    <div className="progress-cell">
-                      <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${trab.percentual_presenca}%`,
-                            background: parseFloat(trab.percentual_presenca) >= 80
-                              ? 'linear-gradient(90deg, #10b981, #059669)'
-                              : parseFloat(trab.percentual_presenca) >= 50
-                              ? 'linear-gradient(90deg, #f59e0b, #d97706)'
-                              : 'linear-gradient(90deg, #ef4444, #dc2626)'
-                          }}
-                        ></div>
-                      </div>
-                      <span className="progress-label">{trab.percentual_presenca}%</span>
-                    </div>
-                  </td>
-                  <td className="center">
-                    {trab.total_advertencias > 0 ? (
-                      <span className="badge danger" title={`${trab.total_advertencias} advertência(s)`}>
-                        {trab.total_advertencias}
-                      </span>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
-                  </td>
-                  <td>
-                    <button
-                      className="btn-link"
-                      onClick={() => handleVerDetalhes(trab)}
-                    >
-                      Ver Detalhes
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {estatisticas.length === 0 && (
-            <div className="empty-state">
-              <p>Nenhum dado disponível no período selecionado</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal de Detalhes */}
-      {selectedTrabalhador && detalhes && (
-        <div className="modal-overlay" onClick={handleFecharDetalhes}>
-          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Detalhes - {detalhes.trabalhador.nome_completo}</h3>
-              <button className="btn-icon" onClick={handleFecharDetalhes}>
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="detalhes-info">
-                <div className="info-item">
-                  <strong>Telefone:</strong> {detalhes.trabalhador.telefone || '-'}
-                </div>
-                <div className="info-item">
-                  <strong>Email:</strong> {detalhes.trabalhador.email || '-'}
-                </div>
-                <div className="info-item">
-                  <strong>Status:</strong>
-                  <span className={`status-badge ${detalhes.trabalhador.status}`}>
-                    {detalhes.trabalhador.status}
-                  </span>
-                </div>
-              </div>
-
-              <h4>Histórico de Presenças</h4>
-
+            <div>
+              <Title level={4}>Histórico de Presenças</Title>
               {detalhes.presencas.length === 0 ? (
-                <div className="empty-state">
-                  <p>Nenhum registro de presença</p>
-                </div>
+                <Empty description="Nenhum registro de presença" />
               ) : (
-                <div className="presencas-list">
-                  {detalhes.presencas.map(p => (
-                    <div key={p.id} className={`presenca-detail-item ${p.presente ? 'presente' : 'ausente'}`}>
-                      <div className="presenca-date">
-                        <strong>
-                          {new Date(p.giras.data).toLocaleDateString('pt-BR', {
-                            weekday: 'long',
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric'
-                          })}
-                        </strong>
-                        <span className={`badge ${p.presente ? 'success' : 'danger'}`}>
-                          {p.presente ? '✓ Presente' : '✗ Ausente'}
-                        </span>
+                <Timeline
+                  items={detalhes.presencas.map(p => ({
+                    color: p.presente ? 'green' : 'red',
+                    children: (
+                      <div>
+                        <Space direction="vertical" size="small">
+                          <Space>
+                            <Text strong>
+                              {new Date(p.giras.data).toLocaleDateString('pt-BR', {
+                                weekday: 'long',
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </Text>
+                            <Tag color={p.presente ? 'success' : 'error'}>
+                              {p.presente ? 'Presente' : 'Ausente'}
+                            </Tag>
+                          </Space>
+                          {!p.presente && p.justificativa_ausencia && (
+                            <Text type="secondary" italic>
+                              Justificativa: {p.justificativa_ausencia}
+                            </Text>
+                          )}
+                          {p.observacoes && (
+                            <Text type="secondary">
+                              Obs: {p.observacoes}
+                            </Text>
+                          )}
+                        </Space>
                       </div>
-                      {!p.presente && p.justificativa_ausencia && (
-                        <div className="presenca-justificativa">
-                          Justificativa: <em>{p.justificativa_ausencia}</em>
-                        </div>
-                      )}
-                      {p.observacoes && (
-                        <div className="presenca-obs">
-                          Obs: {p.observacoes}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    )
+                  }))}
+                />
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </Space>
+        )}
+      </Modal>
+
+      <style>{`
+        .highlight-row {
+          background-color: #f6ffed;
+        }
+        .highlight-row:hover td {
+          background-color: #f6ffed !important;
+        }
+      `}</style>
     </div>
   );
 }

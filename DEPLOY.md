@@ -30,12 +30,20 @@ Pronto! O sistema estará disponível em: **https://admin.cesca.digital**
 ```
 admin-cesca/
 ├── Dockerfile                 # Build da imagem
-├── docker-compose.yml         # Configuração do Swarm
+├── docker-compose.yml         # Configuração do Swarm (Traefik)
+├── docker-stack.yml          # Stack file para Swarm
 ├── nginx.conf                 # Configuração do Nginx
-├── .env.production           # Variáveis de ambiente (CONFIGURADO ✓)
+├── .env                      # Variáveis de ambiente locais
+├── .env.production           # Variáveis de ambiente produção (CONFIGURADO ✓)
 ├── .env.production.example   # Template de exemplo
-├── deploy.sh                 # Script de deploy
+├── .env.example              # Template geral
+├── deploy.sh                 # Script de deploy (antigo)
 ├── rollback.sh              # Script de rollback
+├── scripts/                  # 🆕 Novos scripts de automação
+│   ├── build.sh             # Build da imagem Docker
+│   ├── deploy.sh            # Deploy inicial completo
+│   ├── update.sh            # Atualização de serviço existente
+│   └── build-and-update.sh  # Build + push + update automático
 ├── DEPLOY.md                # Esta documentação
 └── src/                     # Código fonte React
 ```
@@ -141,6 +149,101 @@ git commit -m "Atualização XYZ"
 ```
 
 O Docker Swarm faz **rolling update** sem downtime!
+
+---
+
+## 🆕 Novos Scripts de Automação (./scripts/)
+
+A partir de agora, temos scripts especializados para facilitar o gerenciamento:
+
+### 📌 Atualização Rápida (Recomendado para serviço EXISTENTE)
+
+```bash
+# Build, push e update automático
+./scripts/build-and-update.sh
+```
+
+Este é o comando recomendado para atualizar o serviço que já está rodando!
+
+- ✅ Build da imagem com variáveis de ambiente
+- ✅ Push automático para registry
+- ✅ Update do serviço com rolling update
+- ✅ Monitoramento do progresso
+- ✅ Rollback automático em caso de falha
+
+### 📌 Scripts Individuais
+
+#### 1. Build da Imagem
+
+```bash
+./scripts/build.sh
+```
+
+Faz o build da imagem Docker com as variáveis de ambiente do `.env`.
+
+#### 2. Deploy Inicial
+
+```bash
+./scripts/deploy.sh
+```
+
+Para primeira vez que for deployar o stack (cria serviço novo).
+
+#### 3. Atualização de Serviço
+
+```bash
+./scripts/update.sh
+```
+
+Atualiza um serviço existente com nova imagem.
+Inclui monitoramento do progresso e detecção de falhas.
+
+### 🔄 Workflow Recomendado
+
+**Para serviço já existente (seu caso):**
+
+```bash
+# 1. Fazer mudanças no código
+git pull  # ou edite os arquivos
+
+# 2. Executar build e update automático
+./scripts/build-and-update.sh
+```
+
+**Para primeiro deploy:**
+
+```bash
+# 1. Configurar .env
+cp .env.example .env
+nano .env
+
+# 2. Build e deploy
+./scripts/build.sh
+./scripts/deploy.sh
+```
+
+### ⚙️ Configuração dos Scripts
+
+Os scripts usam as seguintes variáveis do `.env`:
+
+```bash
+# Registry (local ou remoto)
+DOCKER_REGISTRY=localhost:5000
+
+# Versão (opcional, default: timestamp automático)
+VERSION=latest
+
+# Nome do stack (opcional, default: admin-cesca)
+STACK_NAME=admin-cesca
+```
+
+### 📊 Vantagens dos Novos Scripts
+
+1. **Validação Automática**: Verifica env vars, Swarm ativo, serviço existente
+2. **Feedback Visual**: Cores e progresso em tempo real
+3. **Rollback Automático**: Se algo falhar, volta versão anterior
+4. **Monitoramento**: Acompanha o status do deploy
+5. **Versionamento**: Cria tags com timestamp para histórico
 
 ---
 

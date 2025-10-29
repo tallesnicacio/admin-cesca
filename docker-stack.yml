@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  admin-cesca:
+    image: admin-cesca:latest
+
+    # Build configuration (usado apenas localmente)
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_SUPABASE_URL=${REACT_APP_SUPABASE_URL}
+        - REACT_APP_SUPABASE_ANON_KEY=${REACT_APP_SUPABASE_ANON_KEY}
+
+    # Configuração de deploy do Swarm
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      # Estratégia de atualização
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+        order: start-first
+
+      # Estratégia de rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+        monitor: 30s
+        order: stop-first
+
+      # Recursos
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+      # Restart policy
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+      # Placement constraints
+      placement:
+        constraints:
+          - node.role == manager
+        preferences:
+          - spread: node.id
+
+      # Labels para Traefik (se estiver usando)
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.admin-cesca.rule=Host(`admin.cesca.digital`)"
+        - "traefik.http.routers.admin-cesca.entrypoints=websecure"
+        - "traefik.http.routers.admin-cesca.tls=true"
+        - "traefik.http.routers.admin-cesca.tls.certresolver=letsencrypt"
+        - "traefik.http.services.admin-cesca.loadbalancer.server.port=80"
+        - "traefik.http.routers.admin-cesca-http.rule=Host(`admin.cesca.digital`)"
+        - "traefik.http.routers.admin-cesca-http.entrypoints=web"
+        - "traefik.http.routers.admin-cesca-http.middlewares=redirect-to-https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+    # Porta exposta (Traefik faz o roteamento, não precisa publicar)
+    # ports:
+    #   - target: 80
+    #     published: 3000
+    #     protocol: tcp
+    #     mode: ingress
+
+    # Environment variables (opcional, caso não estejam no build)
+    environment:
+      - NODE_ENV=production
+
+    # Healthcheck (desabilitado)
+    # healthcheck:
+    #   test: ["CMD", "/healthcheck.sh"]
+    #   interval: 30s
+    #   timeout: 3s
+    #   retries: 3
+    #   start_period: 10s
+
+    # Networks
+    networks:
+      - network_public
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  network_public:
+    external: true
+
+# Configs (opcional - para arquivos de configuração)
+# configs:
+#   nginx_config:
+#     file: ./nginx.conf
+
+# Secrets (opcional - para dados sensíveis)
+# secrets:
+#   supabase_key:
+#     external: true

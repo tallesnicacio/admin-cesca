@@ -1,33 +1,51 @@
 // CaixaManager.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { showToast } from '../Toast';
 import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Lock,
-  Unlock,
-  Plus,
-  Coffee,
-  ShoppingBag,
-  CreditCard,
-  Calendar,
-  X
-} from 'lucide-react';
-import './CaixaManager.css';
+  Button,
+  Modal,
+  Input,
+  Select,
+  DatePicker,
+  InputNumber,
+  Space,
+  Typography,
+  Card,
+  message,
+  Spin,
+  Table,
+  Tag,
+  Divider
+} from 'antd';
+import {
+  WalletOutlined,
+  RiseOutlined,
+  FallOutlined,
+  DollarOutlined,
+  LockOutlined,
+  UnlockOutlined,
+  PlusOutlined,
+  CoffeeOutlined,
+  ShoppingOutlined,
+  CreditCardOutlined,
+  CalendarOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const CaixaManager = () => {
   const [caixas, setCaixas] = useState([]);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showMovimentacaoModal, setShowMovimentacaoModal] = useState(false);
   const [selectedSetor, setSelectedSetor] = useState(null);
   const [selectedCaixa, setSelectedCaixa] = useState(null);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(dayjs());
   const [openFormData, setOpenFormData] = useState({
     valor_inicial: ''
   });
@@ -42,35 +60,39 @@ const CaixaManager = () => {
   });
 
   const setoresInfo = {
-    lanche: { nome: 'Lanche', icon: Coffee, color: '#f59e0b' },
-    lojinha: { nome: 'Lojinha', icon: ShoppingBag, color: '#8b5cf6' },
-    mensalidades: { nome: 'Mensalidades', icon: CreditCard, color: '#059669' }
+    lanche: { nome: 'Lanche', icon: CoffeeOutlined, color: '#f59e0b' },
+    lojinha: { nome: 'Lojinha', icon: ShoppingOutlined, color: '#8b5cf6' },
+    mensalidades_cursos: { nome: 'Mensalidades', icon: CreditCardOutlined, color: '#059669' }
   };
+
+  // Detectar resize para mobile
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Carregar caixas do dia
   const fetchCaixas = useCallback(async () => {
     try {
       setLoading(true);
 
-      const dataInicio = new Date(dateFilter);
-      dataInicio.setHours(0, 0, 0, 0);
-
-      const dataFim = new Date(dateFilter);
-      dataFim.setHours(23, 59, 59, 999);
+      const dataInicio = dateFilter.startOf('day').toISOString();
+      const dataFim = dateFilter.endOf('day').toISOString();
 
       const { data, error } = await supabase
         .from('caixas')
         .select('*')
-        .gte('data_abertura', dataInicio.toISOString())
-        .lte('data_abertura', dataFim.toISOString())
-        .order('data_abertura', { ascending: false });
+        .gte('hora_abertura', dataInicio)
+        .lte('hora_abertura', dataFim)
+        .order('hora_abertura', { ascending: false });
 
       if (error) throw error;
 
       setCaixas(data || []);
     } catch (error) {
       console.error('Erro ao carregar caixas:', error);
-      showToast.error('Erro ao carregar caixas');
+      message.error('Erro ao carregar caixas');
     } finally {
       setLoading(false);
     }
@@ -88,14 +110,14 @@ const CaixaManager = () => {
         .from('movimentacoes_caixa')
         .select('*')
         .eq('caixa_id', selectedCaixa.id)
-        .order('data_hora', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setMovimentacoes(data || []);
     } catch (error) {
       console.error('Erro ao carregar movimentações:', error);
-      showToast.error('Erro ao carregar movimentações');
+      message.error('Erro ao carregar movimentações');
     }
   }, [selectedCaixa]);
 
@@ -108,52 +130,71 @@ const CaixaManager = () => {
   }, [fetchMovimentacoes]);
 
   // Abrir caixa
-  const handleOpenCaixa = async (e) => {
-    e.preventDefault();
-
+  const handleOpenCaixa = async () => {
     if (!selectedSetor) return;
 
     try {
       const valorInicial = parseFloat(openFormData.valor_inicial);
 
       if (isNaN(valorInicial) || valorInicial < 0) {
-        showToast.error('Valor inicial deve ser um número válido');
+        message.error('Valor inicial deve ser um número válido');
         return;
       }
+
+      const dataHoje = new Date().toISOString().split('T')[0];
+
+      // Verificar se já existe caixa para este setor nesta data
+      const { data: caixaExistente, error: checkError } = await supabase
+        .from('caixas')
+        .select('id, status')
+        .eq('setor', selectedSetor)
+        .eq('data', dataHoje)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (caixaExistente) {
+        message.error(`Já existe um caixa ${caixaExistente.status} para ${setoresInfo[selectedSetor].nome} na data ${new Date().toLocaleDateString('pt-BR')}`);
+        setShowOpenModal(false);
+        return;
+      }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
         .from('caixas')
         .insert({
           setor: selectedSetor,
+          data: dataHoje,
           status: 'aberto',
-          data_abertura: new Date().toISOString(),
-          valor_inicial: valorInicial
+          hora_abertura: new Date().toISOString(),
+          valor_inicial: valorInicial,
+          aberto_por: user?.id || null
         });
 
       if (error) throw error;
 
-      showToast.success(`Caixa ${setoresInfo[selectedSetor].nome} aberto com sucesso!`);
+      message.success(`Caixa ${setoresInfo[selectedSetor].nome} aberto com sucesso!`);
       setShowOpenModal(false);
       setSelectedSetor(null);
       setOpenFormData({ valor_inicial: '' });
       fetchCaixas();
     } catch (error) {
       console.error('Erro ao abrir caixa:', error);
-      showToast.error('Erro ao abrir caixa: ' + error.message);
+      message.error('Erro ao abrir caixa: ' + error.message);
     }
   };
 
   // Fechar caixa
-  const handleCloseCaixa = async (e) => {
-    e.preventDefault();
-
+  const handleCloseCaixa = async () => {
     if (!selectedCaixa) return;
 
     try {
       const valorFinal = parseFloat(closeFormData.valor_final);
 
       if (isNaN(valorFinal) || valorFinal < 0) {
-        showToast.error('Valor final deve ser um número válido');
+        message.error('Valor final deve ser um número válido');
         return;
       }
 
@@ -169,20 +210,22 @@ const CaixaManager = () => {
       const valorEsperado = parseFloat(selectedCaixa.valor_inicial) + totalEntradas - totalSaidas;
       const diferenca = valorFinal - valorEsperado;
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from('caixas')
         .update({
           status: 'fechado',
-          data_fechamento: new Date().toISOString(),
-          valor_final: valorFinal,
-          diferenca: diferenca,
-          updated_at: new Date().toISOString()
+          hora_fechamento: new Date().toISOString(),
+          valor_final_real: valorFinal,
+          fechado_por: user?.id || null
         })
         .eq('id', selectedCaixa.id);
 
       if (error) throw error;
 
-      showToast.success(
+      message.success(
         `Caixa fechado com sucesso! ${diferenca !== 0 ? `Diferença: R$ ${diferenca.toFixed(2)}` : 'Caixa conferido!'}`
       );
       setShowCloseModal(false);
@@ -191,43 +234,45 @@ const CaixaManager = () => {
       fetchCaixas();
     } catch (error) {
       console.error('Erro ao fechar caixa:', error);
-      showToast.error('Erro ao fechar caixa: ' + error.message);
+      message.error('Erro ao fechar caixa: ' + error.message);
     }
   };
 
   // Adicionar movimentação
-  const handleAddMovimentacao = async (e) => {
-    e.preventDefault();
-
+  const handleAddMovimentacao = async () => {
     if (!selectedCaixa) return;
 
     try {
       const valor = parseFloat(movimentacaoFormData.valor);
 
       if (isNaN(valor) || valor <= 0) {
-        showToast.error('Valor deve ser maior que zero');
+        message.error('Valor deve ser maior que zero');
         return;
       }
 
       if (!movimentacaoFormData.categoria?.trim()) {
-        showToast.error('Categoria é obrigatória');
+        message.error('Categoria é obrigatória');
         return;
       }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
         .from('movimentacoes_caixa')
         .insert({
           caixa_id: selectedCaixa.id,
           tipo: movimentacaoFormData.tipo,
+          setor: selectedCaixa.setor,
           valor: valor,
-          categoria: movimentacaoFormData.categoria.trim(),
-          descricao: movimentacaoFormData.descricao?.trim() || null,
-          data_hora: new Date().toISOString()
+          descricao: movimentacaoFormData.categoria.trim() + (movimentacaoFormData.descricao ? ': ' + movimentacaoFormData.descricao.trim() : ''),
+          forma_pagamento: movimentacaoFormData.forma_pagamento || 'dinheiro',
+          registrado_por: user?.id || null
         });
 
       if (error) throw error;
 
-      showToast.success('Movimentação registrada com sucesso!');
+      message.success('Movimentação registrada com sucesso!');
       setShowMovimentacaoModal(false);
       setMovimentacaoFormData({
         tipo: 'entrada',
@@ -238,7 +283,7 @@ const CaixaManager = () => {
       fetchMovimentacoes();
     } catch (error) {
       console.error('Erro ao adicionar movimentação:', error);
-      showToast.error('Erro ao adicionar movimentação: ' + error.message);
+      message.error('Erro ao adicionar movimentação: ' + error.message);
     }
   };
 
@@ -284,151 +329,186 @@ const CaixaManager = () => {
     return { totalEntradas, totalSaidas, saldoAtual };
   };
 
+  // Colunas da tabela
+  const columns = [
+    {
+      title: 'Data/Hora',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (text) => formatDateTime(text)
+    },
+    {
+      title: 'Tipo',
+      dataIndex: 'tipo',
+      key: 'tipo',
+      render: (tipo) => (
+        <Tag color={tipo === 'entrada' ? 'green' : 'red'} icon={tipo === 'entrada' ? <RiseOutlined /> : <FallOutlined />}>
+          {tipo === 'entrada' ? 'Entrada' : 'Saída'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Descrição',
+      dataIndex: 'descricao',
+      key: 'descricao',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Valor',
+      dataIndex: 'valor',
+      key: 'valor',
+      render: (valor, record) => (
+        <Text strong style={{ color: record.tipo === 'entrada' ? '#10b981' : '#ef4444' }}>
+          {formatCurrency(valor)}
+        </Text>
+      )
+    }
+  ];
+
   return (
-    <div className="caixa-manager">
+    <div style={{ padding: isMobile ? 16 : 24 }}>
       {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <Wallet size={32} />
-          <div>
-            <h2>Gestão de Caixas</h2>
-            <p className="header-subtitle">
-              Controle de caixas diários: Lanche, Lojinha e Mensalidades
-            </p>
-          </div>
-        </div>
-        <div className="date-filter">
-          <Calendar size={20} />
-          <input
-            type="date"
-            className="date-input"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-          />
-        </div>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="start" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Space>
+            <WalletOutlined style={{ fontSize: 28, color: '#3b82f6' }} />
+            <div>
+              <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+                Gestão de Caixas
+              </Title>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Controle de caixas diários: Lanche, Lojinha e Mensalidades
+              </Text>
+            </div>
+          </Space>
+        </Space>
       </div>
+
+      <Divider />
+
+      {/* Filtro de data */}
+      <Card style={{ marginBottom: 24, borderRadius: 16, border: '1px solid #f0f0f0' }}>
+        <Space align="center">
+          <CalendarOutlined style={{ fontSize: 20 }} />
+          <Text>Data:</Text>
+          <DatePicker
+            value={dateFilter}
+            onChange={(date) => setDateFilter(date)}
+            format="DD/MM/YYYY"
+            size="large"
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          />
+        </Space>
+      </Card>
 
       {/* Cards dos Caixas */}
       {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>Carregando caixas...</p>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Spin size="large" />
+          <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>Carregando caixas...</Text>
         </div>
       ) : (
-        <div className="caixas-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))', gap: 16, marginBottom: 24 }}>
           {Object.entries(setoresInfo).map(([setor, info]) => {
             const caixaAberto = getCaixaAberto(setor);
             const isAberto = isCaixaAberto(setor);
-            const Icon = info.icon;
+            const IconComponent = info.icon;
 
             return (
-              <div
+              <Card
                 key={setor}
-                className={`caixa-card ${isAberto ? 'caixa-aberto' : 'caixa-fechado'}`}
-                style={{ borderColor: info.color }}
+                style={{
+                  borderRadius: 16,
+                  border: `2px solid ${isAberto ? info.color : '#f0f0f0'}`,
+                }}
               >
-                <div className="caixa-card-header" style={{ background: info.color }}>
-                  <div className="caixa-title">
-                    <Icon size={24} />
-                    <h3>{info.nome}</h3>
-                  </div>
-                  <div className="caixa-status">
-                    {isAberto ? (
-                      <>
-                        <Unlock size={20} />
-                        <span>Aberto</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={20} />
-                        <span>Fechado</span>
-                      </>
-                    )}
-                  </div>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Space>
+                    <IconComponent style={{ fontSize: 24, color: info.color }} />
+                    <Title level={4} style={{ margin: 0 }}>{info.nome}</Title>
+                  </Space>
+                  <Tag color={isAberto ? 'green' : 'default'} icon={isAberto ? <UnlockOutlined /> : <LockOutlined />}>
+                    {isAberto ? 'Aberto' : 'Fechado'}
+                  </Tag>
                 </div>
 
-                <div className="caixa-card-body">
-                  {isAberto && caixaAberto ? (
-                    <>
-                      <div className="caixa-info">
-                        <div className="info-item">
-                          <span className="info-label">Abertura</span>
-                          <span className="info-value">
-                            {formatDateTime(caixaAberto.data_abertura)}
-                          </span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Valor Inicial</span>
-                          <span className="info-value">
-                            {formatCurrency(caixaAberto.valor_inicial)}
-                          </span>
-                        </div>
+                {isAberto && caixaAberto ? (
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <Text type="secondary">Abertura:</Text>
+                        <Text strong style={{ marginLeft: 8 }}>{formatDateTime(caixaAberto.hora_abertura)}</Text>
                       </div>
-
-                      {selectedCaixa?.id === caixaAberto.id && movimentacoes.length > 0 && (
-                        <div className="caixa-resumo">
-                          {(() => {
-                            const { totalEntradas, totalSaidas, saldoAtual } = calcularTotaisCaixa(caixaAberto);
-                            return (
-                              <>
-                                <div className="resumo-item entrada">
-                                  <TrendingUp size={16} />
-                                  <span>Entradas: {formatCurrency(totalEntradas)}</span>
-                                </div>
-                                <div className="resumo-item saida">
-                                  <TrendingDown size={16} />
-                                  <span>Saídas: {formatCurrency(totalSaidas)}</span>
-                                </div>
-                                <div className="resumo-item saldo">
-                                  <DollarSign size={16} />
-                                  <span>Saldo: {formatCurrency(saldoAtual)}</span>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      <div className="caixa-actions">
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => {
-                            setSelectedCaixa(caixaAberto);
-                            setShowMovimentacaoModal(true);
-                          }}
-                        >
-                          <Plus size={18} />
-                          Movimentação
-                        </button>
-                        <button
-                          className="btn btn-danger"
-                          onClick={() => {
-                            setSelectedCaixa(caixaAberto);
-                            setShowCloseModal(true);
-                          }}
-                        >
-                          <Lock size={18} />
-                          Fechar Caixa
-                        </button>
+                      <div>
+                        <Text type="secondary">Valor Inicial:</Text>
+                        <Text strong style={{ marginLeft: 8 }}>{formatCurrency(caixaAberto.valor_inicial)}</Text>
                       </div>
-                    </>
-                  ) : (
-                    <div className="caixa-closed">
-                      <p>Caixa está fechado</p>
-                      <button
-                        className="btn btn-primary"
+                    </div>
+
+                    {selectedCaixa?.id === caixaAberto.id && movimentacoes.length > 0 && (
+                      <div style={{ marginBottom: 16, padding: 12, background: '#f9fafb', borderRadius: 8 }}>
+                        {(() => {
+                          const { totalEntradas, totalSaidas, saldoAtual } = calcularTotaisCaixa(caixaAberto);
+                          return (
+                            <>
+                              <div style={{ marginBottom: 4 }}>
+                                <RiseOutlined style={{ color: '#10b981', marginRight: 4 }} />
+                                <Text>Entradas: {formatCurrency(totalEntradas)}</Text>
+                              </div>
+                              <div style={{ marginBottom: 4 }}>
+                                <FallOutlined style={{ color: '#ef4444', marginRight: 4 }} />
+                                <Text>Saídas: {formatCurrency(totalSaidas)}</Text>
+                              </div>
+                              <div>
+                                <DollarOutlined style={{ color: '#3b82f6', marginRight: 4 }} />
+                                <Text strong>Saldo: {formatCurrency(saldoAtual)}</Text>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    <Space style={{ width: '100%' }} direction="vertical" size="small">
+                      <Button
+                        block
+                        icon={<PlusOutlined />}
                         onClick={() => {
-                          setSelectedSetor(setor);
-                          setShowOpenModal(true);
+                          setSelectedCaixa(caixaAberto);
+                          setShowMovimentacaoModal(true);
                         }}
                       >
-                        <Unlock size={18} />
-                        Abrir Caixa
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+                        Movimentação
+                      </Button>
+                      <Button
+                        block
+                        danger
+                        icon={<LockOutlined />}
+                        onClick={() => {
+                          setSelectedCaixa(caixaAberto);
+                          setShowCloseModal(true);
+                        }}
+                      >
+                        Fechar Caixa
+                      </Button>
+                    </Space>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>Caixa está fechado</Text>
+                    <Button
+                      type="primary"
+                      icon={<UnlockOutlined />}
+                      onClick={() => {
+                        setSelectedSetor(setor);
+                        setShowOpenModal(true);
+                      }}
+                    >
+                      Abrir Caixa
+                    </Button>
+                  </div>
+                )}
+              </Card>
             );
           })}
         </div>
@@ -436,249 +516,170 @@ const CaixaManager = () => {
 
       {/* Lista de Movimentações */}
       {selectedCaixa && movimentacoes.length > 0 && (
-        <div className="movimentacoes-section">
-          <h3>
-            Movimentações - {setoresInfo[selectedCaixa.setor].nome}
-            <span className="count-badge">{movimentacoes.length}</span>
-          </h3>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Data/Hora</th>
-                  <th>Tipo</th>
-                  <th>Categoria</th>
-                  <th>Descrição</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimentacoes.map((mov) => (
-                  <tr key={mov.id}>
-                    <td>{formatDateTime(mov.data_hora)}</td>
-                    <td>
-                      <span className={`tipo-badge tipo-${mov.tipo}`}>
-                        {mov.tipo === 'entrada' ? (
-                          <>
-                            <TrendingUp size={14} /> Entrada
-                          </>
-                        ) : (
-                          <>
-                            <TrendingDown size={14} /> Saída
-                          </>
-                        )}
-                      </span>
-                    </td>
-                    <td>{mov.categoria}</td>
-                    <td>{mov.descricao || '-'}</td>
-                    <td>
-                      <span className={`valor-${mov.tipo}`}>
-                        {formatCurrency(mov.valor)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <Card
+          title={
+            <Space>
+              <Text strong>Movimentações - {setoresInfo[selectedCaixa.setor].nome}</Text>
+              <Tag>{movimentacoes.length}</Tag>
+            </Space>
+          }
+          style={{ borderRadius: 16, border: '1px solid #f0f0f0' }}
+        >
+          <Table
+            columns={columns}
+            dataSource={movimentacoes}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => `Total de ${total} movimentações`
+            }}
+            scroll={{ x: 'max-content' }}
+          />
+        </Card>
       )}
 
       {/* Modal Abrir Caixa */}
-      {showOpenModal && selectedSetor && (
-        <div className="modal-overlay" onClick={() => setShowOpenModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Abrir Caixa - {setoresInfo[selectedSetor].nome}</h3>
-              <button className="modal-close" onClick={() => setShowOpenModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleOpenCaixa}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Valor Inicial *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    step="0.01"
-                    min="0"
-                    value={openFormData.valor_inicial}
-                    onChange={(e) => setOpenFormData({ valor_inicial: e.target.value })}
-                    placeholder="0.00"
-                    required
-                  />
-                  <span className="form-hint">
-                    Informe o valor inicial em dinheiro no caixa
-                  </span>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowOpenModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Unlock size={20} />
-                  Abrir Caixa
-                </button>
-              </div>
-            </form>
+      <Modal
+        title={`Abrir Caixa - ${selectedSetor ? setoresInfo[selectedSetor].nome : ''}`}
+        open={showOpenModal}
+        onOk={handleOpenCaixa}
+        onCancel={() => setShowOpenModal(false)}
+        okText="Abrir Caixa"
+        cancelText="Cancelar"
+        width={500}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <div style={{ marginBottom: 8 }}>
+            <Text>Valor Inicial *</Text>
           </div>
+          <InputNumber
+            style={{ width: '100%' }}
+            size="large"
+            placeholder="0.00"
+            min={0}
+            step={0.01}
+            value={openFormData.valor_inicial}
+            onChange={(value) => setOpenFormData({ valor_inicial: value })}
+            prefix="R$"
+          />
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+            Informe o valor inicial em dinheiro no caixa
+          </Text>
         </div>
-      )}
+      </Modal>
 
       {/* Modal Fechar Caixa */}
-      {showCloseModal && selectedCaixa && (
-        <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Fechar Caixa - {setoresInfo[selectedCaixa.setor].nome}</h3>
-              <button className="modal-close" onClick={() => setShowCloseModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCloseCaixa}>
-              <div className="modal-body">
-                {(() => {
-                  const { totalEntradas, totalSaidas, saldoAtual } = calcularTotaisCaixa(selectedCaixa);
-                  return (
-                    <div className="info-box">
-                      <p>
-                        <strong>Valor Inicial:</strong> {formatCurrency(selectedCaixa.valor_inicial)}<br />
-                        <strong>Total Entradas:</strong> {formatCurrency(totalEntradas)}<br />
-                        <strong>Total Saídas:</strong> {formatCurrency(totalSaidas)}<br />
-                        <strong>Saldo Esperado:</strong> {formatCurrency(saldoAtual)}
-                      </p>
-                    </div>
-                  );
-                })()}
-
-                <div className="form-group">
-                  <label>Valor Final (Contado) *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    step="0.01"
-                    min="0"
-                    value={closeFormData.valor_final}
-                    onChange={(e) => setCloseFormData({ valor_final: e.target.value })}
-                    placeholder="0.00"
-                    required
-                  />
-                  <span className="form-hint">
-                    Informe o valor real contado no caixa
-                  </span>
-                </div>
+      <Modal
+        title={`Fechar Caixa - ${selectedCaixa ? setoresInfo[selectedCaixa.setor].nome : ''}`}
+        open={showCloseModal}
+        onOk={handleCloseCaixa}
+        onCancel={() => setShowCloseModal(false)}
+        okText="Fechar Caixa"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true }}
+        width={500}
+      >
+        <div style={{ padding: '16px 0' }}>
+          {selectedCaixa && (() => {
+            const { totalEntradas, totalSaidas, saldoAtual } = calcularTotaisCaixa(selectedCaixa);
+            return (
+              <div style={{ padding: 16, background: '#f9fafb', borderRadius: 8, marginBottom: 16 }}>
+                <div><Text strong>Valor Inicial:</Text> {formatCurrency(selectedCaixa.valor_inicial)}</div>
+                <div><Text strong>Total Entradas:</Text> {formatCurrency(totalEntradas)}</div>
+                <div><Text strong>Total Saídas:</Text> {formatCurrency(totalSaidas)}</div>
+                <div><Text strong>Saldo Esperado:</Text> {formatCurrency(saldoAtual)}</div>
               </div>
+            );
+          })()}
 
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowCloseModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-danger">
-                  <Lock size={20} />
-                  Fechar Caixa
-                </button>
-              </div>
-            </form>
+          <div style={{ marginBottom: 8 }}>
+            <Text>Valor Final (Contado) *</Text>
           </div>
+          <InputNumber
+            style={{ width: '100%' }}
+            size="large"
+            placeholder="0.00"
+            min={0}
+            step={0.01}
+            value={closeFormData.valor_final}
+            onChange={(value) => setCloseFormData({ valor_final: value })}
+            prefix="R$"
+          />
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+            Informe o valor real contado no caixa
+          </Text>
         </div>
-      )}
+      </Modal>
 
       {/* Modal Adicionar Movimentação */}
-      {showMovimentacaoModal && selectedCaixa && (
-        <div className="modal-overlay" onClick={() => setShowMovimentacaoModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Nova Movimentação - {setoresInfo[selectedCaixa.setor].nome}</h3>
-              <button className="modal-close" onClick={() => setShowMovimentacaoModal(false)}>
-                <X size={24} />
-              </button>
+      <Modal
+        title={`Nova Movimentação - ${selectedCaixa ? setoresInfo[selectedCaixa.setor].nome : ''}`}
+        open={showMovimentacaoModal}
+        onOk={handleAddMovimentacao}
+        onCancel={() => setShowMovimentacaoModal(false)}
+        okText="Adicionar"
+        cancelText="Cancelar"
+        width={600}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Tipo *</Text>
+              </div>
+              <Select
+                style={{ width: '100%' }}
+                size="large"
+                value={movimentacaoFormData.tipo}
+                onChange={(value) => setMovimentacaoFormData({ ...movimentacaoFormData, tipo: value })}
+              >
+                <Select.Option value="entrada">Entrada</Select.Option>
+                <Select.Option value="saida">Saída</Select.Option>
+              </Select>
             </div>
 
-            <form onSubmit={handleAddMovimentacao}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Tipo *</label>
-                    <select
-                      className="form-select"
-                      value={movimentacaoFormData.tipo}
-                      onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, tipo: e.target.value })}
-                      required
-                    >
-                      <option value="entrada">Entrada</option>
-                      <option value="saida">Saída</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Valor *</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      step="0.01"
-                      min="0.01"
-                      value={movimentacaoFormData.valor}
-                      onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, valor: e.target.value })}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Categoria *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={movimentacaoFormData.categoria}
-                    onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, categoria: e.target.value })}
-                    placeholder="Ex: Venda de lanche, Troco, Despesa..."
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Descrição</label>
-                  <textarea
-                    className="form-textarea"
-                    rows="3"
-                    value={movimentacaoFormData.descricao}
-                    onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, descricao: e.target.value })}
-                    placeholder="Detalhes adicionais (opcional)"
-                  />
-                </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Valor *</Text>
               </div>
+              <InputNumber
+                style={{ width: '100%' }}
+                size="large"
+                placeholder="0.00"
+                min={0.01}
+                step={0.01}
+                value={movimentacaoFormData.valor}
+                onChange={(value) => setMovimentacaoFormData({ ...movimentacaoFormData, valor: value })}
+                prefix="R$"
+              />
+            </div>
 
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowMovimentacaoModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Plus size={20} />
-                  Adicionar
-                </button>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Categoria *</Text>
               </div>
-            </form>
-          </div>
+              <Input
+                size="large"
+                placeholder="Ex: Venda de lanche, Troco, Despesa..."
+                value={movimentacaoFormData.categoria}
+                onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, categoria: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Descrição</Text>
+              </div>
+              <TextArea
+                rows={3}
+                placeholder="Detalhes adicionais (opcional)"
+                value={movimentacaoFormData.descricao}
+                onChange={(e) => setMovimentacaoFormData({ ...movimentacaoFormData, descricao: e.target.value })}
+              />
+            </div>
+          </Space>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

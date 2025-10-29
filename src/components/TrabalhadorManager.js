@@ -1,12 +1,42 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Table,
+  Button,
+  Input,
+  Modal,
+  Form,
+  Select,
+  Space,
+  Tag,
+  Statistic,
+  Row,
+  Col,
+  Card,
+  Spin,
+  Empty,
+  message,
+  Tooltip
+} from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  UserOutlined,
+  PhoneOutlined,
+  MailOutlined,
+  FileTextOutlined,
+  NumberOutlined,
+  TeamOutlined
+} from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
-import { Search, Edit2, Trash2, Plus, X, User, Phone, Mail, FileText } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
-import { showToast } from './index';
-import { ConfirmModal } from './Modal';
 import './TrabalhadorManager.css';
 
+const { TextArea } = Input;
+const { Option } = Select;
+
 function TrabalhadorManager() {
+  const [form] = Form.useForm();
   const [trabalhadores, setTrabalhadores] = useState([]);
   const [filteredTrabalhadores, setFilteredTrabalhadores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,19 +44,8 @@ function TrabalhadorManager() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGrupo, setFilterGrupo] = useState('all');
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create');
   const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
-  const [formData, setFormData] = useState({
-    numero: '',
-    nome_completo: '',
-    grupo: '',
-    funcao_permanente: '',
-    telefone: '',
-    email: '',
-    observacoes: ''
-  });
-  const [formErrors, setFormErrors] = useState({});
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, trabalhadorId: null });
   const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
@@ -51,7 +70,7 @@ function TrabalhadorManager() {
       setTrabalhadores(data || []);
     } catch (error) {
       console.error('Erro ao carregar trabalhadores:', error);
-      showToast.error('Erro ao carregar trabalhadores: ' + error.message);
+      message.error('Erro ao carregar trabalhadores: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -82,15 +101,14 @@ function TrabalhadorManager() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({ numero: '', nome_completo: '', grupo: '', funcao_permanente: '', telefone: '', email: '', observacoes: '' });
-    setFormErrors({});
+    form.resetFields();
     setSelectedTrabalhador(null);
     setShowModal(true);
   };
 
   const openEditModal = (trabalhador) => {
     setModalMode('edit');
-    setFormData({
+    form.setFieldsValue({
       numero: trabalhador.numero || '',
       nome_completo: trabalhador.nome_completo || '',
       grupo: trabalhador.grupo || '',
@@ -99,80 +117,52 @@ function TrabalhadorManager() {
       email: trabalhador.email || '',
       observacoes: trabalhador.observacoes || ''
     });
-    setFormErrors({});
     setSelectedTrabalhador(trabalhador);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
-    setFormData({ numero: '', nome_completo: '', grupo: '', funcao_permanente: '', telefone: '', email: '', observacoes: '' });
-    setFormErrors({});
+    form.resetFields();
     setSelectedTrabalhador(null);
   };
 
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.nome_completo?.trim()) {
-      errors.nome_completo = 'Nome completo é obrigatório';
-    }
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Email inválido';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
+  const handleSubmit = async (values) => {
+    setModalLoading(true);
 
     try {
-      setModalLoading(true);
+      const data = {
+        numero: values.numero ? parseInt(values.numero) : null,
+        nome_completo: values.nome_completo.trim(),
+        grupo: values.grupo || null,
+        funcao_permanente: values.funcao_permanente?.trim() || null,
+        telefone: values.telefone?.trim() || null,
+        email: values.email?.trim() || null,
+        observacoes: values.observacoes?.trim() || null
+      };
 
       if (modalMode === 'create') {
         const { error } = await supabase
           .from('trabalhadores')
-          .insert([{
-            numero: formData.numero ? parseInt(formData.numero) : null,
-            nome_completo: formData.nome_completo.trim(),
-            grupo: formData.grupo || null,
-            funcao_permanente: formData.funcao_permanente?.trim() || null,
-            telefone: formData.telefone?.trim() || null,
-            email: formData.email?.trim() || null,
-            observacoes: formData.observacoes?.trim() || null,
-            status: 'ativo'
-          }]);
+          .insert([{ ...data, status: 'ativo' }]);
 
         if (error) throw error;
-        showToast.success('Trabalhador cadastrado com sucesso!');
+        message.success('Trabalhador cadastrado com sucesso!');
       } else {
         const { error } = await supabase
           .from('trabalhadores')
-          .update({
-            numero: formData.numero ? parseInt(formData.numero) : null,
-            nome_completo: formData.nome_completo.trim(),
-            grupo: formData.grupo || null,
-            funcao_permanente: formData.funcao_permanente?.trim() || null,
-            telefone: formData.telefone?.trim() || null,
-            email: formData.email?.trim() || null,
-            observacoes: formData.observacoes?.trim() || null
-          })
+          .update(data)
           .eq('id', selectedTrabalhador.id);
 
         if (error) throw error;
-        showToast.success('Trabalhador atualizado com sucesso!');
+        message.success('Trabalhador atualizado com sucesso!');
       }
 
       closeModal();
       loadTrabalhadores();
     } catch (error) {
       console.error('Erro ao salvar trabalhador:', error);
-      showToast.error('Erro ao salvar trabalhador: ' + error.message);
+      message.error('Erro ao salvar trabalhador: ' + error.message);
     } finally {
       setModalLoading(false);
     }
@@ -188,42 +178,161 @@ function TrabalhadorManager() {
       if (error) throw error;
 
       const statusLabel = novoStatus === 'ativo' ? 'ativado' : novoStatus === 'inativo' ? 'inativado' : 'afastado';
-      showToast.success(`Trabalhador ${statusLabel} com sucesso!`);
+      message.success(`Trabalhador ${statusLabel} com sucesso!`);
       loadTrabalhadores();
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      showToast.error('Erro ao alterar status: ' + error.message);
+      message.error('Erro ao alterar status: ' + error.message);
     }
   };
 
-  const handleDelete = (trabalhadorId) => {
-    setDeleteModal({ isOpen: true, trabalhadorId });
+  const handleDelete = (trabalhador) => {
+    Modal.confirm({
+      title: 'Excluir trabalhador',
+      content: `Tem certeza que deseja excluir ${trabalhador.nome_completo}? Esta ação não pode ser desfeita e removerá todos os registros de presença associados.`,
+      okText: 'Sim, excluir',
+      okType: 'danger',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('trabalhadores')
+            .delete()
+            .eq('id', trabalhador.id);
+
+          if (error) throw error;
+          message.success('Trabalhador excluído com sucesso!');
+          loadTrabalhadores();
+        } catch (error) {
+          console.error('Erro ao excluir:', error);
+          message.error('Erro ao excluir: ' + error.message);
+        }
+      }
+    });
   };
 
-  const handleDeleteConfirm = async () => {
-    setModalLoading(true);
-    const trabalhadorId = deleteModal.trabalhadorId;
-
-    try {
-      const { error } = await supabase
-        .from('trabalhadores')
-        .delete()
-        .eq('id', trabalhadorId);
-
-      if (error) throw error;
-      showToast.success('Trabalhador excluído com sucesso!');
-      loadTrabalhadores();
-      setDeleteModal({ isOpen: false, trabalhadorId: null });
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-      showToast.error('Erro ao excluir: ' + error.message);
-    } finally {
-      setModalLoading(false);
-    }
+  const getStatusTag = (status) => {
+    const statusConfig = {
+      ativo: { color: 'green', text: 'Ativo' },
+      inativo: { color: 'red', text: 'Inativo' },
+      afastado: { color: 'orange', text: 'Afastado' }
+    };
+    const config = statusConfig[status] || statusConfig.ativo;
+    return <Tag color={config.color}>{config.text}</Tag>;
   };
+
+  const columns = [
+    {
+      title: 'Nº',
+      dataIndex: 'numero',
+      key: 'numero',
+      width: 70,
+      render: (numero) => numero || '-',
+      sorter: (a, b) => (a.numero || 0) - (b.numero || 0),
+    },
+    {
+      title: 'Nome',
+      dataIndex: 'nome_completo',
+      key: 'nome_completo',
+      render: (nome, record) => (
+        <Space>
+          <strong>{nome}</strong>
+          {record.observacoes && (
+            <Tooltip title={record.observacoes}>
+              <FileTextOutlined style={{ color: '#1890ff' }} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+      sorter: (a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''),
+    },
+    {
+      title: 'Grupo',
+      dataIndex: 'grupo',
+      key: 'grupo',
+      render: (grupo) => grupo || '-',
+      filters: [
+        { text: 'Direção', value: 'Direção' },
+        { text: 'Médiuns Correntes', value: 'Médiuns Correntes' },
+      ],
+      onFilter: (value, record) => record.grupo === value,
+    },
+    {
+      title: 'Função',
+      dataIndex: 'funcao_permanente',
+      key: 'funcao_permanente',
+      render: (funcao) => funcao || '-',
+    },
+    {
+      title: 'Telefone',
+      dataIndex: 'telefone',
+      key: 'telefone',
+      render: (telefone) => telefone || '-',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status, record) => (
+        <Select
+          value={status}
+          style={{ width: 110 }}
+          size="small"
+          bordered={false}
+          onChange={(value) => handleChangeStatus(record, value)}
+        >
+          <Option value="ativo">
+            <Tag color="green">Ativo</Tag>
+          </Option>
+          <Option value="afastado">
+            <Tag color="orange">Afastado</Tag>
+          </Option>
+          <Option value="inativo">
+            <Tag color="red">Inativo</Tag>
+          </Option>
+        </Select>
+      ),
+      filters: [
+        { text: 'Ativo', value: 'ativo' },
+        { text: 'Afastado', value: 'afastado' },
+        { text: 'Inativo', value: 'inativo' },
+      ],
+      onFilter: (value, record) => record.status === value,
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="primary"
+            ghost
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+            size="small"
+          >
+            Editar
+          </Button>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            size="small"
+          >
+            Excluir
+          </Button>
+        </Space>
+      ),
+    },
+  ];
 
   if (loading) {
-    return <div className="loading">Carregando...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   const totalAtivos = trabalhadores.filter(t => t.status === 'ativo').length;
@@ -231,341 +340,217 @@ function TrabalhadorManager() {
   const totalAfastados = trabalhadores.filter(t => t.status === 'afastado').length;
 
   return (
-    <div className="trabalhador-manager">
-      <Toaster position="top-right" />
-      <div className="manager-header">
-        <h2>Gerenciar Trabalhadores</h2>
-        <button className="btn-primary" onClick={openCreateModal}>
-          <Plus size={20} />
-          Novo Trabalhador
-        </button>
-      </div>
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Row justify="space-between" align="middle">
+        <Col>
+          <h2 style={{ margin: 0 }}>Gerenciar Trabalhadores</h2>
+        </Col>
+        <Col>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openCreateModal}
+            size="large"
+          >
+            Novo Trabalhador
+          </Button>
+        </Col>
+      </Row>
 
-      <div className="filters">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome, telefone ou email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+      <Row gutter={16}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Total"
+              value={trabalhadores.length}
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Ativos"
+              value={totalAtivos}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#10b981' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Afastados"
+              value={totalAfastados}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#f59e0b' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Inativos"
+              value={totalInativos}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#ef4444' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Input
+                placeholder="Buscar por nome, telefone ou email..."
+                prefix={<SearchOutlined />}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                size="large"
+              />
+            </Col>
+            <Col xs={12} md={6}>
+              <Select
+                value={filterStatus}
+                onChange={setFilterStatus}
+                style={{ width: '100%' }}
+                size="large"
+              >
+                <Option value="all">Todos os Status</Option>
+                <Option value="ativo">Ativos</Option>
+                <Option value="inativo">Inativos</Option>
+                <Option value="afastado">Afastados</Option>
+              </Select>
+            </Col>
+            <Col xs={12} md={6}>
+              <Select
+                value={filterGrupo}
+                onChange={setFilterGrupo}
+                style={{ width: '100%' }}
+                size="large"
+              >
+                <Option value="all">Todos os Grupos</Option>
+                <Option value="Direção">Direção</Option>
+                <Option value="Médiuns Correntes">Médiuns Correntes</Option>
+              </Select>
+            </Col>
+          </Row>
+
+          <Table
+            columns={columns}
+            dataSource={filteredTrabalhadores}
+            rowKey="id"
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            locale={{
+              emptyText: <Empty description="Nenhum trabalhador encontrado" />
+            }}
           />
-        </div>
+        </Space>
+      </Card>
 
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="all">Todos os Status</option>
-          <option value="ativo">Ativos</option>
-          <option value="inativo">Inativos</option>
-          <option value="afastado">Afastados</option>
-        </select>
+      <Modal
+        title={modalMode === 'create' ? 'Novo Trabalhador' : 'Editar Trabalhador'}
+        open={showModal}
+        onCancel={closeModal}
+        footer={null}
+        width={700}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+        >
+          <Form.Item
+            name="nome_completo"
+            label="Nome Completo"
+            rules={[{ required: true, message: 'Nome completo é obrigatório' }]}
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Nome completo do trabalhador"
+            />
+          </Form.Item>
 
-        <select value={filterGrupo} onChange={(e) => setFilterGrupo(e.target.value)}>
-          <option value="all">Todos os Grupos</option>
-          <option value="Direção">Direção</option>
-          <option value="Médiuns Correntes">Médiuns Correntes</option>
-        </select>
-      </div>
-
-      <div className="stats-bar">
-        <div className="stat-item">
-          <span className="stat-value">{trabalhadores.length}</span>
-          <span className="stat-label">Total</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">{totalAtivos}</span>
-          <span className="stat-label">Ativos</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">{totalAfastados}</span>
-          <span className="stat-label">Afastados</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-value">{totalInativos}</span>
-          <span className="stat-label">Inativos</span>
-        </div>
-      </div>
-
-      <div className="trabalhadores-table">
-        {filteredTrabalhadores.length === 0 ? (
-          <div className="empty-state">
-            <p>Nenhum trabalhador encontrado</p>
-          </div>
-        ) : (
-          <>
-            {/* Cards para mobile */}
-            {filteredTrabalhadores.map((trab) => (
-              <div key={`card-${trab.id}`} className="trabalhador-card">
-                <div className="trabalhador-card-header">
-                  <div className="trabalhador-card-title">
-                    <h3>{trab.nome_completo}</h3>
-                    <p>{trab.telefone || 'Sem telefone'}</p>
-                  </div>
-                  <span className={`status-badge ${trab.status}`}>
-                    {trab.status === 'ativo' ? 'Ativo' : trab.status === 'afastado' ? 'Afastado' : 'Inativo'}
-                  </span>
-                </div>
-
-                <div className="trabalhador-card-body">
-                  {trab.numero && (
-                    <div className="trabalhador-card-field">
-                      <label>Nº</label>
-                      <div className="value">{trab.numero}</div>
-                    </div>
-                  )}
-                  {trab.grupo && (
-                    <div className="trabalhador-card-field">
-                      <label>Grupo</label>
-                      <div className="value">{trab.grupo}</div>
-                    </div>
-                  )}
-                  {trab.funcao_permanente && (
-                    <div className="trabalhador-card-field">
-                      <label>Função</label>
-                      <div className="value">{trab.funcao_permanente}</div>
-                    </div>
-                  )}
-                  {trab.email && (
-                    <div className="trabalhador-card-field">
-                      <label>Email</label>
-                      <div className="value">{trab.email}</div>
-                    </div>
-                  )}
-                  {trab.observacoes && (
-                    <div className="trabalhador-card-field">
-                      <label>Observações</label>
-                      <div className="value">{trab.observacoes}</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="trabalhador-card-actions">
-                  <button
-                    className="btn-secondary"
-                    onClick={() => openEditModal(trab)}
-                  >
-                    <Edit2 size={18} />
-                    Editar
-                  </button>
-                  <select
-                    className="btn-secondary"
-                    value={trab.status}
-                    onChange={(e) => handleChangeStatus(trab, e.target.value)}
-                    style={{ padding: '0.5rem', marginLeft: '0.5rem' }}
-                  >
-                    <option value="ativo">Ativo</option>
-                    <option value="afastado">Afastado</option>
-                    <option value="inativo">Inativo</option>
-                  </select>
-                  <button
-                    className="btn-icon danger"
-                    onClick={() => handleDelete(trab.id)}
-                    title="Excluir"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Tabela para desktop */}
-            <table>
-              <thead>
-                <tr>
-                  <th>Nº</th>
-                  <th>Nome</th>
-                  <th>Grupo</th>
-                  <th>Função</th>
-                  <th>Telefone</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTrabalhadores.map((trab) => (
-                  <tr key={trab.id}>
-                    <td>{trab.numero || '-'}</td>
-                    <td>
-                      <strong>{trab.nome_completo}</strong>
-                      {trab.observacoes && <small title={trab.observacoes}> ℹ️</small>}
-                    </td>
-                    <td>{trab.grupo || '-'}</td>
-                    <td>{trab.funcao_permanente || '-'}</td>
-                    <td>{trab.telefone || '-'}</td>
-                    <td>
-                      <select
-                        className={`status-badge ${trab.status}`}
-                        value={trab.status}
-                        onChange={(e) => handleChangeStatus(trab, e.target.value)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          fontWeight: '600'
-                        }}
-                      >
-                        <option value="ativo">Ativo</option>
-                        <option value="afastado">Afastado</option>
-                        <option value="inativo">Inativo</option>
-                      </select>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="btn-icon"
-                          onClick={() => openEditModal(trab)}
-                          title="Editar"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          className="btn-icon danger"
-                          onClick={() => handleDelete(trab.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
-
-      {/* Modal de Criar/Editar */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>
-                {modalMode === 'create' ? (
-                  <>
-                    <Plus size={20} /> Novo Trabalhador
-                  </>
-                ) : (
-                  <>
-                    <Edit2 size={20} /> Editar Trabalhador
-                  </>
-                )}
-              </h3>
-              <button className="btn-icon" onClick={closeModal}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form className="trabalhador-form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>
-                  <User size={16} /> Nome Completo *
-                </label>
-                <input
-                  type="text"
-                  value={formData.nome_completo}
-                  onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
-                  placeholder="Nome completo do trabalhador"
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="numero"
+                label="Número"
+              >
+                <Input
+                  prefix={<NumberOutlined />}
+                  type="number"
+                  placeholder="Nº"
                 />
-                {formErrors.nome_completo && <span className="error-text">{formErrors.nome_completo}</span>}
-              </div>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="grupo"
+                label="Grupo"
+              >
+                <Select placeholder="Selecione...">
+                  <Option value="">Nenhum</Option>
+                  <Option value="Direção">Direção</Option>
+                  <Option value="Médiuns Correntes">Médiuns Correntes</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>Número</label>
-                  <input
-                    type="number"
-                    value={formData.numero}
-                    onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                    placeholder="Nº"
-                  />
-                </div>
+          <Form.Item
+            name="funcao_permanente"
+            label="Função Permanente"
+          >
+            <Input placeholder="Ex: Curimba, Cambono, MT1..." />
+          </Form.Item>
 
-                <div className="form-group">
-                  <label>Grupo</label>
-                  <select
-                    value={formData.grupo}
-                    onChange={(e) => setFormData({ ...formData, grupo: e.target.value })}
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Direção">Direção</option>
-                    <option value="Médiuns Correntes">Médiuns Correntes</option>
-                  </select>
-                </div>
-              </div>
+          <Form.Item
+            name="telefone"
+            label="Telefone"
+          >
+            <Input
+              prefix={<PhoneOutlined />}
+              placeholder="(11) 99999-9999"
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>Função Permanente</label>
-                <input
-                  type="text"
-                  value={formData.funcao_permanente}
-                  onChange={(e) => setFormData({ ...formData, funcao_permanente: e.target.value })}
-                  placeholder="Ex: Curimba, Cambono, MT1..."
-                />
-              </div>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ type: 'email', message: 'Email inválido' }]}
+          >
+            <Input
+              prefix={<MailOutlined />}
+              placeholder="email@exemplo.com"
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <Phone size={16} /> Telefone
-                </label>
-                <input
-                  type="tel"
-                  value={formData.telefone}
-                  onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
+          <Form.Item
+            name="observacoes"
+            label="Observações"
+          >
+            <TextArea
+              rows={3}
+              placeholder="Observações sobre o trabalhador..."
+            />
+          </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  <Mail size={16} /> Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="email@exemplo.com"
-                />
-                {formErrors.email && <span className="error-text">{formErrors.email}</span>}
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <FileText size={16} /> Observações
-                </label>
-                <textarea
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                  placeholder="Observações sobre o trabalhador..."
-                  rows="3"
-                />
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={closeModal} disabled={modalLoading}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-primary" disabled={modalLoading}>
-                  {modalLoading ? 'Salvando...' : modalMode === 'create' ? 'Cadastrar' : 'Salvar Alterações'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de Exclusão */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, trabalhadorId: null })}
-        onConfirm={handleDeleteConfirm}
-        title="Excluir trabalhador"
-        message="Tem certeza que deseja excluir este trabalhador? Esta ação não pode ser desfeita e removerá todos os registros de presença associados."
-        confirmText="Sim, excluir"
-        cancelText="Cancelar"
-        type="danger"
-        loading={modalLoading}
-      />
-    </div>
+          <Form.Item>
+            <Space>
+              <Button onClick={closeModal}>
+                Cancelar
+              </Button>
+              <Button type="primary" htmlType="submit" loading={modalLoading}>
+                {modalMode === 'create' ? 'Cadastrar' : 'Salvar Alterações'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Space>
   );
 }
 

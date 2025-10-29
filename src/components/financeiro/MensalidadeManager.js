@@ -1,25 +1,45 @@
 // MensalidadeManager.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { showToast } from '../Toast';
 import {
-  Search,
-  X,
-  DollarSign,
-  Calendar,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  XCircle,
-  Plus,
-  CreditCard,
-  Wallet
-} from 'lucide-react';
-import './MensalidadeManager.css';
+  Button,
+  Modal,
+  Input,
+  Select,
+  DatePicker,
+  InputNumber,
+  Space,
+  Typography,
+  Card,
+  message,
+  Spin,
+  Table,
+  Tag,
+  Row,
+  Col,
+  Statistic,
+  Divider
+} from 'antd';
+import {
+  SearchOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
+  CloseCircleOutlined,
+  PlusOutlined,
+  CreditCardOutlined,
+  WalletOutlined
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const MensalidadeManager = () => {
   const [mensalidades, setMensalidades] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [mesFilter, setMesFilter] = useState('');
@@ -29,7 +49,7 @@ const MensalidadeManager = () => {
   const [selectedMensalidade, setSelectedMensalidade] = useState(null);
   const [paymentData, setPaymentData] = useState({
     valor_pago: '',
-    data_pagamento: new Date().toISOString().split('T')[0],
+    data_pagamento: dayjs(),
     forma_pagamento: 'dinheiro',
     observacoes: ''
   });
@@ -40,12 +60,18 @@ const MensalidadeManager = () => {
     quantidade: 0
   });
 
+  // Detectar resize para mobile
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Carregar mensalidades
   const fetchMensalidades = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Query base - busca todos os campos necessários
       let query = supabase
         .from('mensalidades')
         .select(`
@@ -69,22 +95,18 @@ const MensalidadeManager = () => {
         .order('mes_referencia', { ascending: false })
         .order('data_vencimento', { ascending: false });
 
-      // Filtro por status
       if (statusFilter !== 'todos') {
         query = query.eq('status', statusFilter);
       }
 
-      // Filtro por mês
       if (mesFilter) {
         query = query.eq('mes_referencia', parseInt(mesFilter));
       }
 
-      // Filtro por ano
       if (anoFilter) {
         query = query.eq('ano_referencia', parseInt(anoFilter));
       }
 
-      // Filtro por forma de pagamento
       if (formaPagamentoFilter !== 'todos') {
         query = query.eq('forma_pagamento', formaPagamentoFilter);
       }
@@ -93,7 +115,6 @@ const MensalidadeManager = () => {
 
       if (error) throw error;
 
-      // Filtro por busca (nome do aluno)
       let filteredData = data || [];
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
@@ -107,7 +128,7 @@ const MensalidadeManager = () => {
       calculateStats(filteredData);
     } catch (error) {
       console.error('Erro ao carregar mensalidades:', error);
-      showToast.error('Erro ao carregar mensalidades');
+      message.error('Erro ao carregar mensalidades');
     } finally {
       setLoading(false);
     }
@@ -153,7 +174,7 @@ const MensalidadeManager = () => {
     setSelectedMensalidade(mensalidade);
     setPaymentData({
       valor_pago: mensalidade.valor.toString(),
-      data_pagamento: new Date().toISOString().split('T')[0],
+      data_pagamento: dayjs(),
       forma_pagamento: 'dinheiro',
       observacoes: ''
     });
@@ -161,16 +182,14 @@ const MensalidadeManager = () => {
   };
 
   // Registrar pagamento
-  const handleRegisterPayment = async (e) => {
-    e.preventDefault();
-
+  const handleRegisterPayment = async () => {
     if (!selectedMensalidade) return;
 
     try {
       const valorPago = parseFloat(paymentData.valor_pago);
 
       if (isNaN(valorPago) || valorPago <= 0) {
-        showToast.error('Valor pago deve ser maior que zero');
+        message.error('Valor pago deve ser maior que zero');
         return;
       }
 
@@ -178,7 +197,7 @@ const MensalidadeManager = () => {
         .from('mensalidades')
         .update({
           valor_pago: valorPago,
-          data_pagamento: paymentData.data_pagamento,
+          data_pagamento: paymentData.data_pagamento.format('YYYY-MM-DD'),
           forma_pagamento: paymentData.forma_pagamento,
           status: 'pago',
           observacoes: paymentData.observacoes || null,
@@ -188,86 +207,89 @@ const MensalidadeManager = () => {
 
       if (error) throw error;
 
-      showToast.success('Pagamento registrado com sucesso!');
+      message.success('Pagamento registrado com sucesso!');
       setShowPaymentModal(false);
       setSelectedMensalidade(null);
       fetchMensalidades();
     } catch (error) {
       console.error('Erro ao registrar pagamento:', error);
-      showToast.error('Erro ao registrar pagamento');
+      message.error('Erro ao registrar pagamento');
     }
   };
 
   // Cancelar mensalidade
   const handleCancelMensalidade = async (mensalidade) => {
-    if (!window.confirm(`Deseja realmente cancelar esta mensalidade de ${mensalidade.matricula?.aluno?.nome_completo}?`)) {
-      return;
-    }
+    Modal.confirm({
+      title: 'Cancelar Mensalidade',
+      content: `Deseja realmente cancelar esta mensalidade de ${mensalidade.matricula?.aluno?.nome_completo}?`,
+      okText: 'Cancelar Mensalidade',
+      okType: 'danger',
+      cancelText: 'Voltar',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('mensalidades')
+            .update({
+              status: 'cancelado',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', mensalidade.id);
 
-    try {
-      const { error } = await supabase
-        .from('mensalidades')
-        .update({
-          status: 'cancelado',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', mensalidade.id);
+          if (error) throw error;
 
-      if (error) throw error;
-
-      showToast.success('Mensalidade cancelada com sucesso!');
-      fetchMensalidades();
-    } catch (error) {
-      console.error('Erro ao cancelar mensalidade:', error);
-      showToast.error('Erro ao cancelar mensalidade');
-    }
+          message.success('Mensalidade cancelada com sucesso!');
+          fetchMensalidades();
+        } catch (error) {
+          console.error('Erro ao cancelar mensalidade:', error);
+          message.error('Erro ao cancelar mensalidade');
+        }
+      }
+    });
   };
 
   // Gerar mensalidades do mês
   const handleGerarMensalidades = async () => {
     const hoje = new Date();
-    const mes = hoje.getMonth() + 1; // JavaScript months are 0-indexed
+    const mes = hoje.getMonth() + 1;
     const ano = hoje.getFullYear();
 
-    const confirmacao = window.confirm(
-      `Deseja gerar as mensalidades para ${mes}/${ano}?\n\n` +
-      `Isso criará mensalidades para todas as matrículas ativas que ainda não possuem mensalidade neste mês.`
-    );
+    Modal.confirm({
+      title: 'Gerar Mensalidades',
+      content: `Deseja gerar as mensalidades para ${mes}/${ano}? Isso criará mensalidades para todas as matrículas ativas que ainda não possuem mensalidade neste mês.`,
+      okText: 'Gerar',
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          setLoading(true);
 
-    if (!confirmacao) return;
+          const { data, error } = await supabase.rpc('gerar_mensalidades_mes', {
+            p_mes: mes,
+            p_ano: ano
+          });
 
-    try {
-      setLoading(true);
+          if (error) throw error;
 
-      const { data, error } = await supabase.rpc('gerar_mensalidades_mes', {
-        p_mes: mes,
-        p_ano: ano
-      });
+          const resultado = data[0];
 
-      if (error) throw error;
+          if (resultado.erros && resultado.erros.length > 0) {
+            message.warning(
+              `Mensalidades geradas com avisos: ${resultado.mensalidades_criadas} criadas, ${resultado.matriculas_processadas} processadas`
+            );
+          } else {
+            message.success(
+              `${resultado.mensalidades_criadas} mensalidades criadas de ${resultado.matriculas_processadas} matrículas processadas`
+            );
+          }
 
-      const resultado = data[0];
-
-      if (resultado.erros && resultado.erros.length > 0) {
-        showToast.warning(
-          `Mensalidades geradas com avisos:\n` +
-          `${resultado.mensalidades_criadas} criadas, ${resultado.matriculas_processadas} processadas\n` +
-          `Avisos: ${resultado.erros.join(', ')}`
-        );
-      } else {
-        showToast.success(
-          `Mensalidades geradas com sucesso!\n` +
-          `${resultado.mensalidades_criadas} mensalidades criadas de ${resultado.matriculas_processadas} matrículas processadas`
-        );
+          fetchMensalidades();
+        } catch (error) {
+          console.error('Erro ao gerar mensalidades:', error);
+          message.error('Erro ao gerar mensalidades: ' + error.message);
+        } finally {
+          setLoading(false);
+        }
       }
-
-      fetchMensalidades();
-    } catch (error) {
-      console.error('Erro ao gerar mensalidades:', error);
-      showToast.error('Erro ao gerar mensalidades: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   // Formatar moeda
@@ -300,350 +322,370 @@ const MensalidadeManager = () => {
     hoje.setHours(0, 0, 0, 0);
     const vencimento = new Date(mensalidade.data_vencimento);
 
-    // Se está pendente e passou da data, marca como atrasado visualmente
     if (mensalidade.status === 'pendente' && vencimento < hoje) {
-      return <span className="status-badge status-atrasado">Atrasado</span>;
+      return <Tag color="error" icon={<WarningOutlined />}>Atrasado</Tag>;
     }
 
     const statusMap = {
-      pendente: { label: 'Pendente', class: 'status-pendente' },
-      pago: { label: 'Pago', class: 'status-pago' },
-      atrasado: { label: 'Atrasado', class: 'status-atrasado' },
-      cancelado: { label: 'Cancelado', class: 'status-cancelado' }
+      pendente: { label: 'Pendente', color: 'warning', icon: <ClockCircleOutlined /> },
+      pago: { label: 'Pago', color: 'success', icon: <CheckCircleOutlined /> },
+      cancelado: { label: 'Cancelado', color: 'default', icon: <CloseCircleOutlined /> }
     };
 
     const statusInfo = statusMap[mensalidade.status] || statusMap.pendente;
-    return <span className={`status-badge ${statusInfo.class}`}>{statusInfo.label}</span>;
+    return <Tag color={statusInfo.color} icon={statusInfo.icon}>{statusInfo.label}</Tag>;
   };
 
-  // Limpar busca
-  const handleClearSearch = () => {
-    setSearchTerm('');
-  };
+  // Colunas da tabela
+  const columns = [
+    {
+      title: 'Aluno',
+      key: 'aluno',
+      render: (_, record) => (
+        <div>
+          <Text strong>{record.matricula?.aluno?.nome_completo || 'N/A'}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.matricula?.aluno?.cpf || ''}</Text>
+        </div>
+      )
+    },
+    {
+      title: 'Curso',
+      key: 'curso',
+      render: (_, record) => (
+        <div>
+          <Text>{record.matricula?.curso?.nome || 'N/A'}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.matricula?.curso?.tipo || ''}</Text>
+        </div>
+      )
+    },
+    {
+      title: 'Referência',
+      key: 'referencia',
+      render: (_, record) => (
+        <Text strong>
+          {getMesLabel(record.mes_referencia)}/{record.ano_referencia}
+        </Text>
+      )
+    },
+    {
+      title: 'Vencimento',
+      dataIndex: 'data_vencimento',
+      key: 'data_vencimento',
+      render: (text) => formatDate(text)
+    },
+    {
+      title: 'Valor',
+      dataIndex: 'valor',
+      key: 'valor',
+      render: (valor) => <Text strong>{formatCurrency(valor)}</Text>
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, record) => getStatusBadge(record)
+    },
+    {
+      title: 'Pagamento',
+      key: 'pagamento',
+      render: (_, record) => (
+        record.status === 'pago' ? (
+          <div>
+            <Text strong style={{ color: '#10b981' }}>{formatCurrency(record.valor_pago)}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(record.data_pagamento)}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.forma_pagamento}</Text>
+          </div>
+        ) : <Text type="secondary">-</Text>
+      )
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      render: (_, record) => (
+        record.status === 'pendente' && (
+          <Space>
+            <Button
+              size="small"
+              icon={<CreditCardOutlined />}
+              onClick={() => handleOpenPaymentModal(record)}
+            >
+              Pagar
+            </Button>
+            <Button
+              size="small"
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={() => handleCancelMensalidade(record)}
+            >
+              Cancelar
+            </Button>
+          </Space>
+        )
+      )
+    }
+  ];
 
   return (
-    <div className="mensalidade-manager">
+    <div style={{ padding: isMobile ? 16 : 24 }}>
       {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <DollarSign size={32} />
-          <div>
-            <h2>Gestão de Mensalidades</h2>
-            <p className="header-subtitle">
-              Controle de pagamentos e inadimplência
-            </p>
-          </div>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={handleGerarMensalidades}
-          disabled={loading}
-        >
-          <Plus size={20} />
-          Gerar Mensalidades do Mês
-        </button>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="start" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Space>
+            <DollarOutlined style={{ fontSize: 28, color: '#3b82f6' }} />
+            <div>
+              <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+                Gestão de Mensalidades
+              </Title>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                Controle de pagamentos e inadimplência
+              </Text>
+            </div>
+          </Space>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={handleGerarMensalidades}
+            disabled={loading}
+          >
+            Gerar Mensalidades do Mês
+          </Button>
+        </Space>
       </div>
 
+      <Divider />
+
       {/* Filtros */}
-      <div className="filters-container">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
+      <Card style={{ marginBottom: 24, borderRadius: 16, border: '1px solid #f0f0f0' }}>
+        <Space wrap style={{ width: '100%' }}>
+          <Input
+            prefix={<SearchOutlined />}
             placeholder="Buscar por aluno ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: isMobile ? '100%' : 300 }}
+            size="large"
+            allowClear
           />
-          {searchTerm && (
-            <button className="clear-search" onClick={handleClearSearch}>
-              <X size={18} />
-            </button>
-          )}
-        </div>
 
-        <select
-          className="filter-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="todos">Todos os Status</option>
-          <option value="pendente">Pendente</option>
-          <option value="pago">Pago</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
+          <Select
+            placeholder="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: isMobile ? '100%' : 150 }}
+            size="large"
+          >
+            <Select.Option value="todos">Todos os Status</Select.Option>
+            <Select.Option value="pendente">Pendente</Select.Option>
+            <Select.Option value="pago">Pago</Select.Option>
+            <Select.Option value="cancelado">Cancelado</Select.Option>
+          </Select>
 
-        <select
-          className="filter-select"
-          value={mesFilter}
-          onChange={(e) => setMesFilter(e.target.value)}
-        >
-          <option value="">Todos os Meses</option>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(mes => (
-            <option key={mes} value={mes}>{getMesLabel(mes)}</option>
-          ))}
-        </select>
+          <Select
+            placeholder="Mês"
+            value={mesFilter}
+            onChange={setMesFilter}
+            style={{ width: isMobile ? '100%' : 150 }}
+            size="large"
+            allowClear
+          >
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(mes => (
+              <Select.Option key={mes} value={mes}>{getMesLabel(mes)}</Select.Option>
+            ))}
+          </Select>
 
-        <select
-          className="filter-select"
-          value={anoFilter}
-          onChange={(e) => setAnoFilter(e.target.value)}
-        >
-          <option value="">Todos os Anos</option>
-          {[2024, 2025, 2026].map(ano => (
-            <option key={ano} value={ano}>{ano}</option>
-          ))}
-        </select>
+          <Select
+            placeholder="Ano"
+            value={anoFilter}
+            onChange={setAnoFilter}
+            style={{ width: isMobile ? '100%' : 120 }}
+            size="large"
+            allowClear
+          >
+            {[2024, 2025, 2026].map(ano => (
+              <Select.Option key={ano} value={ano}>{ano}</Select.Option>
+            ))}
+          </Select>
 
-        <select
-          className="filter-select"
-          value={formaPagamentoFilter}
-          onChange={(e) => setFormaPagamentoFilter(e.target.value)}
-        >
-          <option value="todos">Todas as Formas</option>
-          <option value="dinheiro">Dinheiro</option>
-          <option value="pix">PIX</option>
-          <option value="cartao_debito">Cartão Débito</option>
-          <option value="cartao_credito">Cartão Crédito</option>
-          <option value="transferencia">Transferência</option>
-        </select>
-      </div>
+          <Select
+            placeholder="Forma de Pagamento"
+            value={formaPagamentoFilter}
+            onChange={setFormaPagamentoFilter}
+            style={{ width: isMobile ? '100%' : 180 }}
+            size="large"
+          >
+            <Select.Option value="todos">Todas as Formas</Select.Option>
+            <Select.Option value="dinheiro">Dinheiro</Select.Option>
+            <Select.Option value="pix">PIX</Select.Option>
+            <Select.Option value="cartao_debito">Cartão Débito</Select.Option>
+            <Select.Option value="cartao_credito">Cartão Crédito</Select.Option>
+            <Select.Option value="transferencia">Transferência</Select.Option>
+          </Select>
+        </Space>
+      </Card>
 
       {/* Estatísticas */}
-      <div className="stats-bar">
-        <div className="stat-item stat-pendente">
-          <Clock size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalPendente)}</div>
-          <div className="stat-label">A Receber</div>
-        </div>
-
-        <div className="stat-item stat-pago">
-          <CheckCircle size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalPago)}</div>
-          <div className="stat-label">Recebido</div>
-        </div>
-
-        <div className="stat-item stat-atrasado">
-          <AlertCircle size={24} />
-          <div className="stat-value">{formatCurrency(stats.totalAtrasado)}</div>
-          <div className="stat-label">Em Atraso</div>
-        </div>
-
-        <div className="stat-item">
-          <Wallet size={24} />
-          <div className="stat-value">{stats.quantidade}</div>
-          <div className="stat-label">Mensalidades</div>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #f59e0b' }}>
+            <Statistic
+              title="A Receber"
+              value={stats.totalPendente}
+              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#f59e0b' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #10b981' }}>
+            <Statistic
+              title="Recebido"
+              value={stats.totalPago}
+              prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#10b981' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #ef4444' }}>
+            <Statistic
+              title="Em Atraso"
+              value={stats.totalAtrasado}
+              prefix={<WarningOutlined style={{ color: '#ef4444' }} />}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#ef4444' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card style={{ borderRadius: 12, border: '1px solid #3b82f6' }}>
+            <Statistic
+              title="Mensalidades"
+              value={stats.quantidade}
+              prefix={<WalletOutlined style={{ color: '#3b82f6' }} />}
+              valueStyle={{ color: '#3b82f6' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Tabela */}
       {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>Carregando mensalidades...</p>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Spin size="large" />
+          <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>Carregando mensalidades...</Text>
         </div>
       ) : mensalidades.length === 0 ? (
-        <div className="empty-state">
-          <DollarSign size={64} />
-          <p>Nenhuma mensalidade encontrada</p>
-          <button className="btn-link" onClick={handleGerarMensalidades}>
+        <Card style={{ borderRadius: 16, border: '1px solid #f0f0f0', textAlign: 'center', padding: '60px 20px' }}>
+          <DollarOutlined style={{ fontSize: 64, color: '#d1d5db' }} />
+          <Title level={4} type="secondary">Nenhuma mensalidade encontrada</Title>
+          <Button type="link" onClick={handleGerarMensalidades}>
             Gerar mensalidades do mês atual
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Aluno</th>
-                <th>Curso</th>
-                <th>Referência</th>
-                <th>Vencimento</th>
-                <th>Valor</th>
-                <th>Status</th>
-                <th>Pagamento</th>
-                <th className="actions-column">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mensalidades.map((mensalidade) => (
-                <tr key={mensalidade.id}>
-                  <td>
-                    <strong>{mensalidade.matricula?.aluno?.nome_completo || 'N/A'}</strong>
-                    <span className="info-secondary">
-                      {mensalidade.matricula?.aluno?.cpf || ''}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="curso-info">
-                      <span className="curso-name">
-                        {mensalidade.matricula?.curso?.nome || 'N/A'}
-                      </span>
-                      <span className="curso-tipo">
-                        {mensalidade.matricula?.curso?.tipo || ''}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <strong>
-                      {getMesLabel(mensalidade.mes_referencia)}/{mensalidade.ano_referencia}
-                    </strong>
-                  </td>
-                  <td>
-                    <span className="date-info">
-                      {formatDate(mensalidade.data_vencimento)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="valor-highlight">
-                      {formatCurrency(mensalidade.valor)}
-                    </span>
-                  </td>
-                  <td>
-                    {getStatusBadge(mensalidade)}
-                  </td>
-                  <td>
-                    {mensalidade.status === 'pago' ? (
-                      <div className="payment-info">
-                        <span className="valor-pago">
-                          {formatCurrency(mensalidade.valor_pago)}
-                        </span>
-                        <span className="info-secondary">
-                          {formatDate(mensalidade.data_pagamento)}
-                        </span>
-                        <span className="forma-pagamento">
-                          {mensalidade.forma_pagamento}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="info-secondary">-</span>
-                    )}
-                  </td>
-                  <td className="actions-column">
-                    <div className="action-buttons">
-                      {mensalidade.status === 'pendente' && (
-                        <>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleOpenPaymentModal(mensalidade)}
-                            title="Registrar Pagamento"
-                          >
-                            <CreditCard size={18} />
-                          </button>
-                          <button
-                            className="btn-icon danger"
-                            onClick={() => handleCancelMensalidade(mensalidade)}
-                            title="Cancelar"
-                          >
-                            <XCircle size={18} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card style={{ borderRadius: 16, border: '1px solid #f0f0f0' }}>
+          <Table
+            columns={columns}
+            dataSource={mensalidades}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total de ${total} mensalidades`
+            }}
+            scroll={{ x: 'max-content' }}
+          />
+        </Card>
       )}
 
       {/* Modal de Pagamento */}
-      {showPaymentModal && selectedMensalidade && (
-        <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Registrar Pagamento</h3>
-              <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
-                <X size={24} />
-              </button>
+      <Modal
+        title="Registrar Pagamento"
+        open={showPaymentModal}
+        onOk={handleRegisterPayment}
+        onCancel={() => setShowPaymentModal(false)}
+        okText="Confirmar Pagamento"
+        cancelText="Cancelar"
+        width={600}
+      >
+        <div style={{ padding: '16px 0' }}>
+          {selectedMensalidade && (
+            <div style={{ padding: 16, background: '#f9fafb', borderRadius: 8, marginBottom: 16 }}>
+              <div><Text strong>Aluno:</Text> {selectedMensalidade.matricula?.aluno?.nome_completo}</div>
+              <div><Text strong>Curso:</Text> {selectedMensalidade.matricula?.curso?.nome}</div>
+              <div><Text strong>Referência:</Text> {getMesLabel(selectedMensalidade.mes_referencia)}/{selectedMensalidade.ano_referencia}</div>
+              <div><Text strong>Valor:</Text> {formatCurrency(selectedMensalidade.valor)}</div>
+            </div>
+          )}
+
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Valor Pago *</Text>
+              </div>
+              <InputNumber
+                style={{ width: '100%' }}
+                size="large"
+                placeholder="0.00"
+                min={0}
+                step={0.01}
+                value={paymentData.valor_pago}
+                onChange={(value) => setPaymentData({ ...paymentData, valor_pago: value })}
+                prefix="R$"
+              />
             </div>
 
-            <form onSubmit={handleRegisterPayment}>
-              <div className="modal-body">
-                <div className="info-box">
-                  <p>
-                    <strong>Aluno:</strong> {selectedMensalidade.matricula?.aluno?.nome_completo}<br />
-                    <strong>Curso:</strong> {selectedMensalidade.matricula?.curso?.nome}<br />
-                    <strong>Referência:</strong> {getMesLabel(selectedMensalidade.mes_referencia)}/{selectedMensalidade.ano_referencia}<br />
-                    <strong>Valor:</strong> {formatCurrency(selectedMensalidade.valor)}
-                  </p>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Valor Pago *</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      step="0.01"
-                      min="0"
-                      value={paymentData.valor_pago}
-                      onChange={(e) => setPaymentData({ ...paymentData, valor_pago: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Data do Pagamento *</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={paymentData.data_pagamento}
-                      onChange={(e) => setPaymentData({ ...paymentData, data_pagamento: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Forma de Pagamento *</label>
-                    <select
-                      className="form-select"
-                      value={paymentData.forma_pagamento}
-                      onChange={(e) => setPaymentData({ ...paymentData, forma_pagamento: e.target.value })}
-                      required
-                    >
-                      <option value="dinheiro">Dinheiro</option>
-                      <option value="pix">PIX</option>
-                      <option value="cartao_debito">Cartão de Débito</option>
-                      <option value="cartao_credito">Cartão de Crédito</option>
-                      <option value="transferencia">Transferência Bancária</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Observações</label>
-                    <textarea
-                      className="form-textarea"
-                      rows="3"
-                      value={paymentData.observacoes}
-                      onChange={(e) => setPaymentData({ ...paymentData, observacoes: e.target.value })}
-                      placeholder="Observações sobre o pagamento (opcional)"
-                    />
-                  </div>
-                </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Data do Pagamento *</Text>
               </div>
+              <DatePicker
+                style={{ width: '100%' }}
+                size="large"
+                value={paymentData.data_pagamento}
+                onChange={(date) => setPaymentData({ ...paymentData, data_pagamento: date })}
+                format="DD/MM/YYYY"
+              />
+            </div>
 
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowPaymentModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <CheckCircle size={20} />
-                  Confirmar Pagamento
-                </button>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Forma de Pagamento *</Text>
               </div>
-            </form>
-          </div>
+              <Select
+                style={{ width: '100%' }}
+                size="large"
+                value={paymentData.forma_pagamento}
+                onChange={(value) => setPaymentData({ ...paymentData, forma_pagamento: value })}
+              >
+                <Select.Option value="dinheiro">Dinheiro</Select.Option>
+                <Select.Option value="pix">PIX</Select.Option>
+                <Select.Option value="cartao_debito">Cartão de Débito</Select.Option>
+                <Select.Option value="cartao_credito">Cartão de Crédito</Select.Option>
+                <Select.Option value="transferencia">Transferência Bancária</Select.Option>
+              </Select>
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text>Observações</Text>
+              </div>
+              <TextArea
+                rows={3}
+                placeholder="Observações sobre o pagamento (opcional)"
+                value={paymentData.observacoes}
+                onChange={(e) => setPaymentData({ ...paymentData, observacoes: e.target.value })}
+              />
+            </div>
+          </Space>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };
