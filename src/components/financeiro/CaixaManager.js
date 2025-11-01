@@ -153,15 +153,43 @@ const CaixaManager = () => {
 
       if (checkError) throw checkError;
 
-      if (caixaExistente) {
-        message.error(`Já existe um caixa ${caixaExistente.status} para ${setoresInfo[selectedSetor].nome} na data ${new Date().toLocaleDateString('pt-BR')}`);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Se já existe um caixa ABERTO, bloquear
+      if (caixaExistente && caixaExistente.status === 'aberto') {
+        message.error(`Já existe um caixa aberto para ${setoresInfo[selectedSetor].nome} na data ${new Date().toLocaleDateString('pt-BR')}`);
         setShowOpenModal(false);
         return;
       }
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Se existe um caixa FECHADO, reabrir (UPDATE)
+      if (caixaExistente && caixaExistente.status === 'fechado') {
+        const { error } = await supabase
+          .from('caixas')
+          .update({
+            status: 'aberto',
+            hora_abertura: new Date().toISOString(),
+            valor_inicial: valorInicial,
+            aberto_por: user?.id || null,
+            // Limpar campos de fechamento ao reabrir
+            hora_fechamento: null,
+            valor_final_real: null,
+            fechado_por: null
+          })
+          .eq('id', caixaExistente.id);
 
+        if (error) throw error;
+
+        message.success(`Caixa ${setoresInfo[selectedSetor].nome} reaberto com sucesso!`);
+        setShowOpenModal(false);
+        setSelectedSetor(null);
+        setOpenFormData({ valor_inicial: '' });
+        fetchCaixas();
+        return;
+      }
+
+      // Se não existe nenhum caixa, criar um novo (INSERT)
       const { error } = await supabase
         .from('caixas')
         .insert({
