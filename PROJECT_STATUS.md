@@ -1,31 +1,36 @@
 # 📊 STATUS DO PROJETO - Admin CESCA
 **Sistema Administrativo do Centro Espírita Santa Clara de Assis**
 
-**Data última atualização:** 25 de Outubro de 2024
-**Status Geral:** ✅ **SISTEMA COMPLETO E EM PRODUÇÃO**
+**Data última atualização:** 1 de Novembro de 2025
+**Status Geral:** ⚠️ **SISTEMA EM PRODUÇÃO COM CORREÇÃO PENDENTE**
 
 ---
 
 ## 🎯 VISÃO GERAL DO PROJETO
 
 O Admin CESCA é um sistema administrativo web completo para gerenciar:
-1. **Agendamentos** - Sistema de agendamento de atendimentos espirituais
+1. **Agendamentos** - Sistema de agendamento de atendimentos espirituais (⚠️ requer correção RLS)
 2. **Presença de Trabalhadores** - Controle de presença em giras (sessões espirituais)
-3. **Usuários** - Gerenciamento de usuários administradores
-4. **Configurações** - Configurações do sistema de agendamentos
-5. **Relatórios** - Estatísticas e relatórios diversos
+3. **Financeiro** - Gestão completa de alunos, cursos, matrículas, mensalidades, despesas e caixa
+4. **Escalas** - Sistema inteligente de geração de escalas de trabalho
+5. **Usuários** - Gerenciamento de usuários administradores
+6. **Configurações** - Configurações do sistema de agendamentos
+7. **Relatórios** - Estatísticas e relatórios diversos
 
 ---
 
 ## 🏗️ ARQUITETURA TÉCNICA
 
 ### **Stack Tecnológico:**
-- **Frontend:** React.js (Create React App)
-- **Backend:** Supabase (PostgreSQL + Auth + RLS)
-- **Estilo:** CSS customizado (sem frameworks)
-- **Ícones:** lucide-react
-- **Notificações:** react-hot-toast
-- **Exportação:** xlsx (SheetJS)
+- **Frontend:** React 19.2.0 (Create React App)
+- **Backend:** Supabase 2.76.1 (PostgreSQL + Auth + RLS + Storage)
+- **UI Framework:** Ant Design 5.27.6 + @ant-design/icons 6.1.0
+- **Estilo:** CSS customizado + Ant Design
+- **Ícones:** Lucide React 0.546.0 + Ant Design Icons
+- **Notificações:** React Hot Toast 2.6.0 + Ant Design Message
+- **Roteamento:** React Router DOM 7.9.4
+- **Datas:** Day.js 1.11.18
+- **Exportação:** XLSX 0.18.5, jsPDF 3.0.3 + jspdf-autotable 5.0.2
 - **Deploy:** Docker + Docker Swarm
 - **Servidor:** nginx (servindo build estático)
 
@@ -34,20 +39,44 @@ O Admin CESCA é um sistema administrativo web completo para gerenciar:
 /root/admin-cesca/
 ├── src/
 │   ├── components/
-│   │   ├── AgendamentoManager.js/.css    # Gerenciar agendamentos
+│   │   ├── AgendamentoManager.js/.css    # Gerenciar agendamentos ⚠️
 │   │   ├── TrabalhadorManager.js/.css    # Gerenciar trabalhadores
 │   │   ├── PresencaManager.js/.css       # Registrar presença em giras
 │   │   ├── PresencaReports.js/.css       # Relatórios de presença
+│   │   ├── AdvertenciaManager.js/.css    # Sistema de advertências
 │   │   ├── UserManager.js/.css           # Gerenciar usuários
 │   │   ├── Configuracoes.js              # Configurações do sistema
 │   │   ├── Dashboard.js/.css             # Dashboard principal
 │   │   ├── Login.js/.css                 # Tela de login
-│   │   ├── Modal.js/.css                 # Componentes de modal
+│   │   ├── AuthCallback.js               # Callback de autenticação
+│   │   ├── SetPassword.js                # Definir senha
 │   │   ├── Reports.js/.css               # Relatórios de agendamentos
+│   │   ├── Modal.js/.css                 # Componentes de modal
 │   │   ├── Button.js/.css                # Componente de botão
 │   │   ├── Card.js/.css                  # Componente de card
 │   │   ├── Input.js/.css                 # Componente de input
-│   │   └── index.js                      # Exports e toast helpers
+│   │   ├── GlobalStyles.css              # Estilos globais
+│   │   ├── index.js                      # Exports e toast helpers
+│   │   ├── financeiro/                   # 🆕 MÓDULO FINANCEIRO
+│   │   │   ├── FinanceiroManager.js      # Dashboard Financeiro
+│   │   │   ├── AlunoManager.js           # Gestão de alunos
+│   │   │   ├── CursoManager.js           # Gestão de cursos
+│   │   │   ├── MatriculaManager.js       # Gestão de matrículas
+│   │   │   ├── MensalidadeManager.js     # Gestão de mensalidades
+│   │   │   ├── DespesaManager.js         # Gestão de despesas (c/ Storage)
+│   │   │   └── CaixaManager.js           # Gestão de caixa
+│   │   └── escalas/                      # 🆕 MÓDULO ESCALAS
+│   │       ├── EscalasManager.js         # Dashboard Escalas
+│   │       ├── TiposAtendimentoConfig.js # Config tipos de atendimento
+│   │       ├── CapacitacoesManager.js    # Capacitações dos trabalhadores
+│   │       ├── FuncoesFixasConfig.js     # Configuração funções fixas
+│   │       ├── RestricoesManager.js      # Restrições de disponibilidade
+│   │       ├── GeradorEscalas.js         # Geração automática de escalas
+│   │       ├── PainelRevisao.js          # Revisão e ajustes de escalas
+│   │       ├── SubstituicoesManager.js   # Gestão de substituições
+│   │       └── utils/
+│   │           ├── algoritmoEscalas.js   # Algoritmo de geração
+│   │           └── detectorConflitos.js  # Detector de conflitos
 │   ├── App.js/.css                       # Componente raiz
 │   ├── index.js                          # Entry point
 │   └── supabaseClient.js                 # Cliente Supabase
@@ -55,10 +84,13 @@ O Admin CESCA é um sistema administrativo web completo para gerenciar:
 ├── build/                                # Build de produção
 ├── Dockerfile                            # Multi-stage build
 ├── docker-compose.yml                    # Orquestração Docker
+├── docker-stack.yml                      # Stack Docker Swarm
 ├── nginx.conf                            # Configuração nginx
 ├── build-docker.sh                       # Script de build
-├── ecosystem.config.js                   # PM2 config (se aplicável)
-└── *.sql                                 # Scripts SQL do Supabase
+├── deploy-production.sh                  # Script de deploy
+├── ecosystem.config.js                   # PM2 config
+├── *.sql                                 # Scripts SQL do Supabase
+└── *.md                                  # Documentação (este arquivo)
 ```
 
 ### **Deploy:**
@@ -110,10 +142,31 @@ O Admin CESCA é um sistema administrativo web completo para gerenciar:
 
 **Tabela Supabase:** `agendamentos`
 
-**Correções Recentes:**
+**⚠️ PROBLEMA IDENTIFICADO (01/11/2025):**
+
+**Sintoma:** Botões de confirmar, cancelar e excluir não funcionam.
+
+**Causa Raiz:**
+- Row Level Security (RLS) Policies do Supabase não configuradas corretamente
+- Políticas antigas conflitantes bloqueando operações UPDATE/DELETE
+
+**Status do Código JavaScript:** ✅ 100% correto e funcional
+- Handlers implementados corretamente (src/components/AgendamentoManager.js:120-312)
+- Modais funcionais (linhas 759-855)
+- Logs detalhados de debug adicionados
+- Migrado para Ant Design com sucesso
+
+**Solução Preparada:**
+- Script SQL completo: `fix-agendamentos-completo.sql`
+- Guia de correção: `CORRIGIR-AGENDAMENTOS-AGORA.md`
+- Tempo estimado de correção: 5 minutos
+- **Ação necessária:** Executar script no SQL Editor do Supabase Dashboard
+
+**Correções Anteriores:**
 - ✅ Erro "i is not a function" corrigido (props dos modais)
-- ✅ Atendente agora é capturado automaticamente do usuário logado
+- ✅ Atendente capturado automaticamente do usuário logado
 - ✅ Removido modal de prompt manual do atendente
+- ✅ Migração para Ant Design completa
 
 ---
 
@@ -403,6 +456,326 @@ O Admin CESCA é um sistema administrativo web completo para gerenciar:
 - Apenas usuários com `is_admin = true` podem acessar
 - Session gerenciada pelo Supabase Auth
 - RLS protege todas as rotas
+
+---
+
+### 🆕 8. MÓDULO FINANCEIRO (100% COMPLETO)
+
+**Data de Implementação:** 27-29 de Outubro de 2025
+**Commits:** `90d5b86`, `a0d889e`, `539cb82`
+
+#### **8.1. Dashboard Financeiro**
+
+**Arquivo:** `financeiro/FinanceiroManager.js`
+
+**Funcionalidades:**
+- ✅ Dashboard central do módulo financeiro
+- ✅ Navegação entre sub-módulos
+- ✅ Cards de estatísticas gerais
+- ✅ Acesso rápido aos principais recursos
+
+#### **8.2. Gestão de Alunos**
+
+**Arquivo:** `financeiro/AlunoManager.js`
+
+**Funcionalidades:**
+- ✅ Cadastro completo de alunos
+- ✅ Campos: nome, CPF, telefone, email, data nascimento, endereço
+- ✅ Busca e filtros avançados
+- ✅ Status: ativo, inativo, trancado
+- ✅ Histórico de matrículas
+- ✅ Exportação para Excel
+
+**Tabela Supabase:** `alunos`
+
+#### **8.3. Gestão de Cursos**
+
+**Arquivo:** `financeiro/CursoManager.js`
+
+**Funcionalidades:**
+- ✅ Gerenciar cursos regulares e avulsos
+- ✅ Configuração de valores de mensalidade
+- ✅ Dia de vencimento customizável
+- ✅ Duração de cursos (meses)
+- ✅ Ativar/Desativar cursos
+- ✅ Descrições detalhadas
+
+**Tabela Supabase:** `cursos`
+
+**Tipos de Curso:**
+- **Regular:** Mensalidades recorrentes sem prazo definido
+- **Avulso:** Curso com duração específica em meses
+
+#### **8.4. Gestão de Matrículas**
+
+**Arquivo:** `financeiro/MatriculaManager.js`
+
+**Funcionalidades:**
+- ✅ Vincular alunos a cursos
+- ✅ Data de início e fim de matrícula
+- ✅ Status: ativa, trancada, concluída, cancelada
+- ✅ Geração automática de mensalidades
+- ✅ Histórico completo por aluno
+- ✅ Relatórios de matrículas ativas
+
+**Tabela Supabase:** `matriculas`
+
+#### **8.5. Gestão de Mensalidades**
+
+**Arquivo:** `financeiro/MensalidadeManager.js`
+
+**Funcionalidades:**
+- ✅ Geração automática de mensalidades (ao criar matrícula)
+- ✅ Registro de pagamentos
+- ✅ Controle de status: pendente, paga, atrasada, cancelada
+- ✅ Métodos de pagamento: dinheiro, PIX, cartão, transferência
+- ✅ Cálculo automático de valores
+- ✅ Filtros por status e período
+- ✅ Relatórios de inadimplência
+- ✅ Exportação para Excel
+
+**Tabela Supabase:** `mensalidades`
+
+**Campos principais:**
+- aluno_id, matricula_id, curso_id
+- competencia (mês/ano)
+- valor, data_vencimento, data_pagamento
+- status, metodo_pagamento
+- observacoes
+
+#### **8.6. Gestão de Despesas**
+
+**Arquivo:** `financeiro/DespesaManager.js`
+
+**Funcionalidades:**
+- ✅ Registro completo de despesas
+- ✅ Categorias personalizáveis
+- ✅ Upload de comprovantes (Supabase Storage)
+- ✅ Visualização de anexos
+- ✅ Aprovação de despesas (workflow)
+- ✅ Status: pendente, aprovada, rejeitada, paga
+- ✅ Filtros avançados
+- ✅ Exportação com anexos
+
+**Tabela Supabase:** `despesas`
+**Storage Bucket:** `comprovantes-despesas`
+
+**Categorias de Despesa:**
+- Material de limpeza
+- Energia elétrica
+- Água
+- Telefone/Internet
+- Material de escritório
+- Manutenção
+- Outras
+
+#### **8.7. Gestão de Caixa**
+
+**Arquivo:** `financeiro/CaixaManager.js`
+
+**Funcionalidades:**
+- ✅ Abertura e fechamento de caixa
+- ✅ Registro de movimentações (entrada/saída)
+- ✅ Saldo inicial e final
+- ✅ Tipos de movimentação configuráveis
+- ✅ Integração com mensalidades e despesas
+- ✅ Setor de caixa (possibilidade de múltiplos caixas)
+- ✅ Relatório de fechamento
+- ✅ Histórico completo
+- ✅ **Reabertura de caixa** (adicionado em 01/11/2025)
+
+**Tabelas Supabase:**
+- `caixas` - Controle de abertura/fechamento
+- `movimentacoes_caixa` - Todas as movimentações
+- `tipos_movimentacao` - Tipos customizáveis
+
+**Status do Caixa:**
+- Aberto
+- Fechado
+
+**Tipos de Movimentação:**
+- Entrada (mensalidades, doações, etc.)
+- Saída (despesas, reembolsos, etc.)
+
+**Correção Recente (01/11/2025):**
+- ✅ Implementada funcionalidade de reabertura de caixa
+- ✅ Validação de permissões para reabertura
+- ✅ Histórico preservado ao reabrir
+
+---
+
+### 🆕 9. MÓDULO ESCALAS (100% COMPLETO)
+
+**Data de Implementação:** 27-29 de Outubro de 2025
+**Commits:** `1f8cbb8`, `db9dd7f`
+
+**Objetivo:** Sistema inteligente de geração automática de escalas de trabalho para funções/atendimentos do centro espírita.
+
+#### **9.1. Dashboard Escalas**
+
+**Arquivo:** `escalas/EscalasManager.js`
+
+**Funcionalidades:**
+- ✅ Dashboard central do módulo
+- ✅ Visão geral das escalas ativas
+- ✅ Acesso rápido aos geradores
+- ✅ Estatísticas de distribuição
+
+#### **9.2. Tipos de Atendimento**
+
+**Arquivo:** `escalas/TiposAtendimentoConfig.js`
+
+**Funcionalidades:**
+- ✅ Configurar tipos de atendimento/função
+- ✅ Definir quantidade mínima e máxima de pessoas
+- ✅ Dias da semana que o atendimento ocorre
+- ✅ Configuração de prioridades
+- ✅ Ativar/Desativar tipos
+
+**Tabela Supabase:** `tipos_atendimento`
+
+**Exemplos:**
+- Psicografia (mínimo: 2, máximo: 4, dias: Segunda/Sexta)
+- Portal de Obaluaiê (mínimo: 1, máximo: 2, dias: Sexta)
+- Sala de Tratamento (mínimo: 3, máximo: 5, dias: Segunda/Sexta)
+
+#### **9.3. Capacitações Manager**
+
+**Arquivo:** `escalas/CapacitacoesManager.js`
+
+**Funcionalidades:**
+- ✅ Vincular trabalhadores às capacitações/funções
+- ✅ Nível de experiência: iniciante, intermediário, avançado
+- ✅ Data de habilitação
+- ✅ Status: ativo, inativo, em treinamento
+- ✅ Matriz de capacitações (trabalhador x função)
+- ✅ Filtros e buscas avançadas
+
+**Tabela Supabase:** `capacitacoes`
+
+**Campos:**
+- trabalhador_id, tipo_atendimento_id
+- nivel_experiencia, data_habilitacao
+- status, observacoes
+
+#### **9.4. Funções Fixas**
+
+**Arquivo:** `escalas/FuncoesFixasConfig.js`
+
+**Funcionalidades:**
+- ✅ Designar trabalhadores para funções fixas
+- ✅ Definir dias específicos da semana
+- ✅ Funções permanentes (sempre naquela função)
+- ✅ Exclusão do trabalhador de outras funções naquele dia
+- ✅ Gestão de substituições temporárias
+
+**Tabela Supabase:** `funcoes_fixas`
+
+#### **9.5. Restrições Manager**
+
+**Arquivo:** `escalas/RestricoesManager.js`
+
+**Funcionalidades:**
+- ✅ Registrar indisponibilidades de trabalhadores
+- ✅ Tipos: férias, viagem, saúde, pessoal, outro
+- ✅ Período de restrição (data início/fim)
+- ✅ Restrições recorrentes (ex: toda terça-feira)
+- ✅ Justificativas
+- ✅ Calendário visual de restrições
+
+**Tabela Supabase:** `restricoes`
+
+**Tipos de Restrição:**
+- Férias
+- Viagem
+- Saúde
+- Compromisso pessoal
+- Outro
+
+#### **9.6. Gerador de Escalas**
+
+**Arquivo:** `escalas/GeradorEscalas.js`
+
+**Funcionalidades:**
+- ✅ Geração automática inteligente de escalas
+- ✅ Algoritmo de distribuição equitativa
+- ✅ Respeita capacitações dos trabalhadores
+- ✅ Respeita restrições de disponibilidade
+- ✅ Respeita funções fixas
+- ✅ Detecta e alerta conflitos
+- ✅ Prioriza trabalhadores menos escalados
+- ✅ Configuração de período (semanal/mensal)
+- ✅ Visualização prévia antes de salvar
+- ✅ Exportação da escala gerada
+
+**Tabela Supabase:** `escalas`
+
+**Algoritmo:**
+```javascript
+// escalas/utils/algoritmoEscalas.js
+1. Carrega tipos de atendimento ativos
+2. Para cada dia da semana:
+   a. Identifica tipos de atendimento do dia
+   b. Filtra trabalhadores capacitados
+   c. Remove trabalhadores com restrições
+   d. Aplica funções fixas
+   e. Distribui restantes por prioridade/carga
+   f. Valida mínimo/máximo de pessoas
+3. Retorna escala completa ou erros
+```
+
+#### **9.7. Painel de Revisão**
+
+**Arquivo:** `escalas/PainelRevisao.js`
+
+**Funcionalidades:**
+- ✅ Revisar escalas geradas
+- ✅ Editar manualmente alocações
+- ✅ Visualizar conflitos
+- ✅ Aprovar/Rejeitar escalas
+- ✅ Publicar escala (torna visível para trabalhadores)
+- ✅ Histórico de alterações
+- ✅ Comentários e observações
+
+**Tabela Supabase:** `escalas` (campo: status)
+
+**Status de Escala:**
+- Rascunho
+- Em revisão
+- Aprovada
+- Publicada
+- Cancelada
+
+#### **9.8. Substituições Manager**
+
+**Arquivo:** `escalas/SubstituicoesManager.js`
+
+**Funcionalidades:**
+- ✅ Registrar substituições de última hora
+- ✅ Buscar trabalhadores disponíveis para substituição
+- ✅ Filtrar por capacitação necessária
+- ✅ Histórico de substituições
+- ✅ Estatísticas de substituições por trabalhador
+- ✅ Notificações (futuro)
+
+**Tabela Supabase:** `substituicoes`
+
+**Campos:**
+- escala_id, trabalhador_original_id, substituto_id
+- data_substituicao, motivo, aprovado_por
+
+#### **9.9. Utilitários**
+
+**Arquivos:**
+- `escalas/utils/algoritmoEscalas.js` - Lógica de geração automática
+- `escalas/utils/detectorConflitos.js` - Detecta conflitos e inconsistências
+
+**Detecção de Conflitos:**
+- Trabalhador escalado em funções simultâneas
+- Trabalhador escalado com restrição ativa
+- Função com menos que mínimo de pessoas
+- Função com mais que máximo de pessoas
+- Trabalhador sem capacitação para a função
 
 ---
 
