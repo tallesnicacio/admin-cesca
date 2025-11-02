@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import logger from '../utils/logger';
 import {
   DownloadOutlined,
   RiseOutlined,
@@ -112,7 +113,7 @@ function Reports() {
         ).length
       });
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      logger.error('Erro ao carregar dados:', error);
       message.error('Erro ao carregar dados dos relatórios');
     } finally {
       setLoading(false);
@@ -181,7 +182,7 @@ function Reports() {
       doc.save(`relatorio_agendamentos_${new Date().toISOString().split('T')[0]}.pdf`);
       message.success('PDF exportado com sucesso!');
     } catch (error) {
-      console.error('Erro ao exportar PDF:', error);
+      logger.error('Erro ao exportar PDF:', error);
       message.error('Erro ao exportar PDF');
     }
   };
@@ -206,7 +207,7 @@ function Reports() {
       XLSX.writeFile(wb, `relatorio_${new Date().toISOString().split('T')[0]}.xlsx`);
       message.success('Excel exportado com sucesso!');
     } catch (error) {
-      console.error('Erro ao exportar Excel:', error);
+      logger.error('Erro ao exportar Excel:', error);
       message.error('Erro ao exportar Excel');
     }
   };

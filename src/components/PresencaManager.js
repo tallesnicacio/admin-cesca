@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import logger from '../utils/logger';
 import {
   CalendarOutlined,
   PlusOutlined,
@@ -7,8 +8,7 @@ import {
   PrinterOutlined,
   LeftOutlined,
   RightOutlined,
-  TeamOutlined,
-  CheckCircleOutlined
+  TeamOutlined
 } from '@ant-design/icons';
 import { Card, Button, Select, Input, Modal, message, Space, Typography, Row, Col, Statistic } from 'antd';
 
@@ -62,7 +62,7 @@ function PresencaManager({ userProfile }) {
       if (error) throw error;
       setGiras(data || []);
     } catch (error) {
-      console.error('Erro ao carregar giras:', error);
+      logger.error('Erro ao carregar giras:', error);
       message.error('Erro ao carregar giras');
     }
   };
@@ -78,7 +78,7 @@ function PresencaManager({ userProfile }) {
       if (error) throw error;
       setTrabalhadores(data || []);
     } catch (error) {
-      console.error('Erro ao carregar trabalhadores:', error);
+      logger.error('Erro ao carregar trabalhadores:', error);
       message.error('Erro ao carregar trabalhadores');
     }
   };
@@ -100,7 +100,7 @@ function PresencaManager({ userProfile }) {
 
       setPresencas(presencasMap);
     } catch (error) {
-      console.error('Erro ao carregar presenças:', error);
+      logger.error('Erro ao carregar presenças:', error);
       message.error('Erro ao carregar presenças');
     }
   };
@@ -148,7 +148,7 @@ function PresencaManager({ userProfile }) {
       // Abrir automaticamente para registrar presença
       handleRegistrarPresenca(data);
     } catch (error) {
-      console.error('Erro ao criar gira:', error);
+      logger.error('Erro ao criar gira:', error);
       if (error.code === '23505') {
         message.error('Já existe uma gira cadastrada para esta data');
       } else {
@@ -234,7 +234,7 @@ function PresencaManager({ userProfile }) {
       loadGiras();
       setView('list');
     } catch (error) {
-      console.error('Erro ao salvar presenças:', error);
+      logger.error('Erro ao salvar presenças:', error);
       message.error('Erro ao salvar presenças: ' + error.message);
     } finally {
       setSaving(false);
@@ -609,7 +609,7 @@ function PresencaManager({ userProfile }) {
 
   const totalJustificadas = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'J').length;
   const totalFaltas = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'F').length;
-  const totalAfastados = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'A').length;
+  // const totalAfastados = trabalhadores.filter(t => presencas[t.id]?.status_presenca === 'A').length; // Não utilizado
 
   return (
     <div style={{ padding: isMobile ? '16px' : '24px', maxWidth: '1400px', margin: '0 auto' }}>

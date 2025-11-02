@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge, Drawer, Button, message } from 'antd';
+import React, { useState, lazy, Suspense } from 'react';
+import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge, Drawer, Button, message, Spin } from 'antd';
+import logger from '../utils/logger';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -14,16 +15,30 @@ import {
   MenuOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
-import AgendamentoManager from './AgendamentoManager';
-import Configuracoes from './Configuracoes';
-import Reports from './Reports';
-import UserManager from './UserManager';
-import TrabalhadorManager from './TrabalhadorManager';
-import PresencaManager from './PresencaManager';
-import PresencaReports from './PresencaReports';
-import AdvertenciaManager from './AdvertenciaManager';
-import FinanceiroManager from './financeiro/FinanceiroManager';
-import EscalasManager from './escalas/EscalasManager';
+
+// Lazy loading de componentes para reduzir bundle inicial
+const AgendamentoManager = lazy(() => import('./AgendamentoManager'));
+const Configuracoes = lazy(() => import('./Configuracoes'));
+const Reports = lazy(() => import('./Reports'));
+const UserManager = lazy(() => import('./UserManager'));
+const TrabalhadorManager = lazy(() => import('./TrabalhadorManager'));
+const PresencaManager = lazy(() => import('./PresencaManager'));
+const PresencaReports = lazy(() => import('./PresencaReports'));
+const AdvertenciaManager = lazy(() => import('./AdvertenciaManager'));
+const FinanceiroManager = lazy(() => import('./financeiro/FinanceiroManager'));
+const EscalasManager = lazy(() => import('./escalas/EscalasManager'));
+
+// Componente de loading
+const LoadingFallback = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '400px'
+  }}>
+    <Spin size="large" tip="Carregando..." />
+  </div>
+);
 
 const { Header, Content } = Layout;
 const { Text } = Typography;
@@ -59,7 +74,7 @@ function Dashboard({ session }) {
       if (error) throw error;
       setUserProfile(data);
     } catch (error) {
-      console.error('Erro ao carregar perfil:', error);
+      logger.error('Erro ao carregar perfil:', error);
       message.error('Não foi possível carregar o perfil do usuário. Por favor, recarregue a página.');
     }
   };
@@ -314,13 +329,15 @@ function Dashboard({ session }) {
           margin: '0 auto',
         }}
       >
-        {activeTab === 'agendamentos' && <AgendamentoManager userProfile={userProfile} />}
-        {activeTab === 'presenca' && renderPresencaContent()}
-        {activeTab === 'escalas' && <EscalasManager userProfile={userProfile} />}
-        {activeTab === 'financeiro' && <FinanceiroManager userProfile={userProfile} />}
-        {activeTab === 'usuarios' && <UserManager />}
-        {activeTab === 'configuracoes' && <Configuracoes />}
-        {activeTab === 'reports' && <Reports />}
+        <Suspense fallback={<LoadingFallback />}>
+          {activeTab === 'agendamentos' && <AgendamentoManager userProfile={userProfile} />}
+          {activeTab === 'presenca' && renderPresencaContent()}
+          {activeTab === 'escalas' && <EscalasManager userProfile={userProfile} />}
+          {activeTab === 'financeiro' && <FinanceiroManager userProfile={userProfile} />}
+          {activeTab === 'usuarios' && <UserManager />}
+          {activeTab === 'configuracoes' && <Configuracoes />}
+          {activeTab === 'reports' && <Reports />}
+        </Suspense>
       </Content>
     </Layout>
   );

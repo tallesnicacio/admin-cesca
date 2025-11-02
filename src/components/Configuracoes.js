@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Card, Button, Tag, Alert, Spin, Typography, Divider, Space, Switch, Row, Col } from 'antd';
+import { Card, Button, Tag, Alert, Spin, Typography, Divider, Space, Row, Col } from 'antd';
 import {
   PoweroffOutlined,
   CalendarOutlined,

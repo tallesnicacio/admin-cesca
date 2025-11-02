@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useDebounce } from '../hooks/useDebounce';
+import logger from '../utils/logger';
 import * as XLSX from 'xlsx';
 import {
   Table,
@@ -34,7 +35,7 @@ import {
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const { confirm } = Modal;
+// const { confirm } = Modal; // Não utilizado - removido
 
 function AgendamentoManager({ userProfile }) {
   const [agendamentos, setAgendamentos] = useState([]);
@@ -72,12 +73,12 @@ function AgendamentoManager({ userProfile }) {
 
   const loadAgendamentos = async () => {
     try {
-      console.log('📥 ========== CARREGANDO AGENDAMENTOS ==========');
+      logger.log('📥 ========== CARREGANDO AGENDAMENTOS ==========');
       setLoading(true);
 
       // Verificar sessão antes de carregar
       const { data: sessionData } = await supabase.auth.getSession();
-      console.log('🔐 Sessão ao carregar:', {
+      logger.log('🔐 Sessão ao carregar:', {
         temSessao: !!sessionData?.session,
         usuario: sessionData?.session?.user?.email || 'SEM USUÁRIO'
       });
@@ -87,16 +88,16 @@ function AgendamentoManager({ userProfile }) {
         .select('*')
         .order('data_solicitacao', { ascending: false });
 
-      console.log('📬 Resposta do Supabase:', {
+      logger.log('📬 Resposta do Supabase:', {
         quantidadeAgendamentos: data?.length || 0,
         error: error ? error.message : 'SEM ERRO'
       });
 
       if (error) throw error;
       setAgendamentos(data || []);
-      console.log('✅ Agendamentos carregados:', data?.length || 0);
+      logger.log('✅ Agendamentos carregados:', data?.length || 0);
     } catch (error) {
-      console.error('❌ Erro ao carregar agendamentos:', error);
+      logger.error('❌ Erro ao carregar agendamentos:', error);
       message.error('Erro ao carregar agendamentos');
     } finally {
       setLoading(false);
@@ -122,40 +123,40 @@ function AgendamentoManager({ userProfile }) {
   };
 
   const handleConfirmarAgendamento = async (agendamento) => {
-    console.log('🔔 ========== BOTÃO CONFIRMAR CLICADO ==========');
-    console.log('📋 Agendamento:', agendamento);
-    console.log('👤 UserProfile:', userProfile);
-    console.log('📝 Nome do atendente:', userProfile?.name || 'Admin');
-    console.log('🔢 ID do agendamento:', agendamento?.id);
-    console.log('1️⃣ Primeira opção:', agendamento?.primeira_opcao);
-    console.log('2️⃣ Segunda opção:', agendamento?.segunda_opcao);
+    logger.log('🔔 ========== BOTÃO CONFIRMAR CLICADO ==========');
+    logger.log('📋 Agendamento:', agendamento);
+    logger.log('👤 UserProfile:', userProfile);
+    logger.log('📝 Nome do atendente:', userProfile?.name || 'Admin');
+    logger.log('🔢 ID do agendamento:', agendamento?.id);
+    logger.log('1️⃣ Primeira opção:', agendamento?.primeira_opcao);
+    logger.log('2️⃣ Segunda opção:', agendamento?.segunda_opcao);
 
     const nomeAtendente = userProfile?.name || 'Admin';
 
     // Se não houver segunda opção, usa a primeira automaticamente
     if (!agendamento.segunda_opcao) {
-      console.log('➡️ NÃO há segunda opção - confirmando automaticamente com primeira opção');
+      logger.log('➡️ NÃO há segunda opção - confirmando automaticamente com primeira opção');
       setModalLoading(true);
       try {
-        console.log('🔄 Chamando handleUpdateStatus...');
+        logger.log('🔄 Chamando handleUpdateStatus...');
         await handleUpdateStatus(agendamento.id, 'Confirmado', nomeAtendente, 'primeira');
-        console.log('✅ handleUpdateStatus completou sem erros');
+        logger.log('✅ handleUpdateStatus completou sem erros');
       } catch (error) {
-        console.error('❌ ERRO ao confirmar agendamento:', error);
+        logger.error('❌ ERRO ao confirmar agendamento:', error);
         message.error('Erro ao confirmar agendamento: ' + error.message);
       } finally {
         setModalLoading(false);
-        console.log('🏁 setModalLoading(false)');
+        logger.log('🏁 setModalLoading(false)');
       }
       return;
     }
 
     // Se houver segunda opção, mostrar modal para escolher
-    console.log('➡️ HÁ segunda opção - abrindo modal para escolher');
+    logger.log('➡️ HÁ segunda opção - abrindo modal para escolher');
     setAgendamentoSelecionado(agendamento);
     setOpcaoSelecionada('primeira'); // Reseta para primeira opção
     setModalOpcaoVisible(true);
-    console.log('✅ Modal deve estar aberto agora');
+    logger.log('✅ Modal deve estar aberto agora');
   };
 
   const handleConfirmarComOpcao = async () => {
@@ -171,7 +172,7 @@ function AgendamentoManager({ userProfile }) {
       setModalOpcaoVisible(false);
       setAgendamentoSelecionado(null);
     } catch (error) {
-      console.error('Erro ao confirmar:', error);
+      logger.error('Erro ao confirmar:', error);
     } finally {
       setModalLoading(false);
     }
@@ -179,8 +180,8 @@ function AgendamentoManager({ userProfile }) {
 
   const handleUpdateStatus = async (id, newStatus, atendente = null, opcaoEscolhida = null) => {
     try {
-      console.log('🚀 ========== INÍCIO handleUpdateStatus ==========');
-      console.log('📥 Parâmetros recebidos:', {
+      logger.log('🚀 ========== INÍCIO handleUpdateStatus ==========');
+      logger.log('📥 Parâmetros recebidos:', {
         id,
         newStatus,
         atendente,
@@ -195,32 +196,32 @@ function AgendamentoManager({ userProfile }) {
         if (opcaoEscolhida) updateData.opcao_escolhida = opcaoEscolhida;
       }
 
-      console.log('📝 updateData preparado:', updateData);
-      console.log('🔑 ID do agendamento:', id);
-      console.log('👤 Usuário logado:', userProfile);
+      logger.log('📝 updateData preparado:', updateData);
+      logger.log('🔑 ID do agendamento:', id);
+      logger.log('👤 Usuário logado:', userProfile);
 
       // Verificar sessão do Supabase
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      console.log('🔐 Sessão atual:', {
+      logger.log('🔐 Sessão atual:', {
         session: sessionData?.session ? 'EXISTE' : 'NÃO EXISTE',
         user: sessionData?.session?.user?.email || 'SEM USUÁRIO',
         error: sessionError
       });
 
       if (!sessionData?.session) {
-        console.error('❌ ERRO: Não há sessão ativa!');
+        logger.error('❌ ERRO: Não há sessão ativa!');
         message.error('Você não está autenticado. Faça login novamente.');
         return;
       }
 
-      console.log('📤 Enviando UPDATE para Supabase...');
+      logger.log('📤 Enviando UPDATE para Supabase...');
       const { data, error } = await supabase
         .from('agendamentos')
         .update(updateData)
         .eq('id', id)
         .select();
 
-      console.log('📬 Resposta do Supabase:', {
+      logger.log('📬 Resposta do Supabase:', {
         data,
         error,
         hasData: !!data,
@@ -228,7 +229,7 @@ function AgendamentoManager({ userProfile }) {
       });
 
       if (error) {
-        console.error('❌ ERRO DO SUPABASE:', {
+        logger.error('❌ ERRO DO SUPABASE:', {
           message: error.message,
           details: error.details,
           hint: error.hint,
@@ -239,28 +240,28 @@ function AgendamentoManager({ userProfile }) {
       }
 
       if (!data || data.length === 0) {
-        console.error('❌ AVISO: UPDATE não retornou dados!');
-        console.error('Isso pode significar que o registro não existe ou foi bloqueado por RLS');
+        logger.error('❌ AVISO: UPDATE não retornou dados!');
+        logger.error('Isso pode significar que o registro não existe ou foi bloqueado por RLS');
         throw new Error('Nenhum registro foi atualizado. Verifique as permissões.');
       }
 
-      console.log('✅ Agendamento atualizado com sucesso:', data);
+      logger.log('✅ Agendamento atualizado com sucesso:', data);
       message.success('Status atualizado com sucesso!');
       loadAgendamentos();
-      console.log('🏁 ========== FIM handleUpdateStatus ==========');
+      logger.log('🏁 ========== FIM handleUpdateStatus ==========');
     } catch (error) {
-      console.error('❌ ========== ERRO em handleUpdateStatus ==========');
-      console.error('Tipo do erro:', error.constructor.name);
-      console.error('Mensagem:', error.message);
-      console.error('Stack:', error.stack);
-      console.error('Erro completo:', error);
+      logger.error('❌ ========== ERRO em handleUpdateStatus ==========');
+      logger.error('Tipo do erro:', error.constructor.name);
+      logger.error('Mensagem:', error.message);
+      logger.error('Stack:', error.stack);
+      logger.error('Erro completo:', error);
       message.error('Erro ao atualizar status: ' + error.message);
     }
   };
 
   const handleDelete = (agendamento) => {
-    console.log('🗑️ ========== BOTÃO EXCLUIR CLICADO ==========');
-    console.log('🔢 ID do agendamento:', agendamento?.id);
+    logger.log('🗑️ ========== BOTÃO EXCLUIR CLICADO ==========');
+    logger.log('🔢 ID do agendamento:', agendamento?.id);
     setAgendamentoSelecionado(agendamento);
     setModalExcluirVisible(true);
   };
@@ -281,7 +282,7 @@ function AgendamentoManager({ userProfile }) {
       setAgendamentoSelecionado(null);
       loadAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir:', error);
+      logger.error('Erro ao excluir:', error);
       message.error('Erro ao excluir: ' + error.message);
     } finally {
       setModalLoading(false);
@@ -289,19 +290,19 @@ function AgendamentoManager({ userProfile }) {
   };
 
   const handleCancelarAgendamento = (agendamento) => {
-    console.log('🔴 ========== BOTÃO CANCELAR CLICADO ==========');
-    console.log('🔢 ID do agendamento:', agendamento?.id);
-    console.log('📋 Agendamento completo:', agendamento);
+    logger.log('🔴 ========== BOTÃO CANCELAR CLICADO ==========');
+    logger.log('🔢 ID do agendamento:', agendamento?.id);
+    logger.log('📋 Agendamento completo:', agendamento);
     setAgendamentoSelecionado(agendamento);
     setModalCancelarVisible(true);
-    console.log('✅ Estado atualizado, modal deve abrir');
+    logger.log('✅ Estado atualizado, modal deve abrir');
   };
 
   const confirmarCancelamento = async () => {
     if (!agendamentoSelecionado) return;
 
-    console.log('✅ Usuário confirmou o cancelamento no modal');
-    console.log('🔄 Chamando handleUpdateStatus para cancelar...');
+    logger.log('✅ Usuário confirmou o cancelamento no modal');
+    logger.log('🔄 Chamando handleUpdateStatus para cancelar...');
 
     try {
       setModalLoading(true);
@@ -309,7 +310,7 @@ function AgendamentoManager({ userProfile }) {
       setModalCancelarVisible(false);
       setAgendamentoSelecionado(null);
     } catch (error) {
-      console.error('❌ Erro ao cancelar:', error);
+      logger.error('❌ Erro ao cancelar:', error);
     } finally {
       setModalLoading(false);
     }
@@ -482,7 +483,7 @@ function AgendamentoManager({ userProfile }) {
 
       message.success('Lista de chamada gerada com sucesso!');
     } catch (error) {
-      console.error('Erro ao gerar lista de impressão:', error);
+      logger.error('Erro ao gerar lista de impressão:', error);
       message.error('Erro ao gerar lista de impressão');
       printWindow.close();
     }

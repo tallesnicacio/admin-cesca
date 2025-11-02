@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
-  UserOutlined,
+  // UserOutlined, // Não utilizado
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,

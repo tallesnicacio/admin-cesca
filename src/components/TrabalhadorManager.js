@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import logger from '../utils/logger';
 import {
   Table,
   Button,
@@ -69,7 +70,7 @@ function TrabalhadorManager() {
       if (error) throw error;
       setTrabalhadores(data || []);
     } catch (error) {
-      console.error('Erro ao carregar trabalhadores:', error);
+      logger.error('Erro ao carregar trabalhadores:', error);
       message.error('Erro ao carregar trabalhadores: ' + error.message);
     } finally {
       setLoading(false);
@@ -161,7 +162,7 @@ function TrabalhadorManager() {
       closeModal();
       loadTrabalhadores();
     } catch (error) {
-      console.error('Erro ao salvar trabalhador:', error);
+      logger.error('Erro ao salvar trabalhador:', error);
       message.error('Erro ao salvar trabalhador: ' + error.message);
     } finally {
       setModalLoading(false);
@@ -181,7 +182,7 @@ function TrabalhadorManager() {
       message.success(`Trabalhador ${statusLabel} com sucesso!`);
       loadTrabalhadores();
     } catch (error) {
-      console.error('Erro ao alterar status:', error);
+      logger.error('Erro ao alterar status:', error);
       message.error('Erro ao alterar status: ' + error.message);
     }
   };
@@ -204,7 +205,7 @@ function TrabalhadorManager() {
           message.success('Trabalhador excluído com sucesso!');
           loadTrabalhadores();
         } catch (error) {
-          console.error('Erro ao excluir:', error);
+          logger.error('Erro ao excluir:', error);
           message.error('Erro ao excluir: ' + error.message);
         }
       }

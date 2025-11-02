@@ -23,10 +23,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   SearchOutlined,
-  CheckCircleOutlined,
-  StarOutlined,
-  RiseOutlined,
-  WarningOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;

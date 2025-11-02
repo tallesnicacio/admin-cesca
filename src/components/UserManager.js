@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
+import logger from '../utils/logger';
 import {
   Table,
   Button,
@@ -67,7 +68,7 @@ function UserManager() {
       if (error) throw error;
       setUsers(data || []);
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error);
+      logger.error('Erro ao carregar usuários:', error);
       message.error('Erro ao carregar usuários: ' + error.message);
     } finally {
       setLoading(false);
@@ -160,7 +161,7 @@ function UserManager() {
               });
 
             if (profileError) {
-              console.warn('Aviso ao criar perfil:', profileError);
+              logger.warn('Aviso ao criar perfil:', profileError);
             }
           }
 
@@ -183,7 +184,7 @@ function UserManager() {
       closeModal();
       loadUsers();
     } catch (error) {
-      console.error('Erro ao salvar usuário:', error);
+      logger.error('Erro ao salvar usuário:', error);
 
       let errorMessage = 'Erro ao salvar usuário';
 
@@ -219,7 +220,7 @@ function UserManager() {
           message.success('Usuário desativado com sucesso!');
           loadUsers();
         } catch (error) {
-          console.error('Erro ao excluir usuário:', error);
+          logger.error('Erro ao excluir usuário:', error);
           message.error('Erro ao excluir usuário: ' + error.message);
         }
       }

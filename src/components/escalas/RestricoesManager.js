@@ -23,7 +23,7 @@ import {
   SearchOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs'; // Não utilizado
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
