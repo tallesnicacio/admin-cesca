@@ -89,7 +89,7 @@ function Reports() {
 
       // Extrair serviços únicos de todos os agendamentos (sem filtro)
       const { data: allData } = await supabase.from('agendamentos').select('primeira_opcao');
-      const services = [...new Set(allData?.map(a => a.primeira_opcao).filter(Boolean))];
+      const services = [...new Set((allData || []).map(a => a?.primeira_opcao).filter(Boolean))];
       setAvailableServices(services.sort());
 
       // Calcular estatísticas
@@ -156,7 +156,7 @@ function Reports() {
         doc.setFontSize(16);
         doc.text('Lista Completa de Agendamentos', 14, 20);
 
-        const agendamentosData = agendamentos.map(ag => [
+        const agendamentosData = (agendamentos || []).map(ag => [
           new Date(ag.data_solicitacao).toLocaleDateString('pt-BR'),
           ag.nome_completo,
           ag.email,
@@ -188,7 +188,7 @@ function Reports() {
 
   const exportExcel = () => {
     try {
-      const dataToExport = agendamentos.map(ag => ({
+      const dataToExport = (agendamentos || []).map(ag => ({
         'Data': new Date(ag.data_solicitacao).toLocaleString('pt-BR'),
         'Nome': ag.nome_completo,
         'Email': ag.email,

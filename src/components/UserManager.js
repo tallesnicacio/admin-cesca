@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Table,
   Button,
@@ -39,6 +40,9 @@ function UserManager() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+
+  // Debounce search term para melhorar performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [modalMode, setModalMode] = useState('create');
   const [selectedUser, setSelectedUser] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -50,7 +54,7 @@ function UserManager() {
   useEffect(() => {
     filterUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, users]);
+  }, [debouncedSearchTerm, users]);
 
   const loadUsers = async () => {
     try {
@@ -73,10 +77,10 @@ function UserManager() {
   const filterUsers = () => {
     let filtered = [...users];
 
-    if (searchTerm) {
+    if (debouncedSearchTerm) {
       filtered = filtered.filter(user =>
-        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        user.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       );
     }
 

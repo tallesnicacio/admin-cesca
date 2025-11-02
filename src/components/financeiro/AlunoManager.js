@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   UserOutlined,
   PlusOutlined,
@@ -40,6 +41,9 @@ function AlunoManager({ userProfile }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  // Debounce search term para melhorar performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
   // Estados do modal
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // create | edit
@@ -58,10 +62,11 @@ function AlunoManager({ userProfile }) {
     loadAlunos();
   }, []);
 
-  // Filtrar alunos quando searchTerm, filterStatus ou alunos mudarem
+  // Filtrar alunos quando debouncedSearchTerm, filterStatus ou alunos mudarem
   useEffect(() => {
     filterAlunos();
-  }, [searchTerm, filterStatus, alunos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm, filterStatus, alunos]);
 
   // Função para carregar alunos do banco
   const loadAlunos = async () => {
@@ -87,8 +92,8 @@ function AlunoManager({ userProfile }) {
     let filtered = [...alunos];
 
     // Filtro de busca (nome, CPF, telefone, email)
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(aluno =>
         aluno.nome_completo?.toLowerCase().includes(term) ||
         aluno.cpf?.toLowerCase().includes(term) ||

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useDebounce } from '../hooks/useDebounce';
 import * as XLSX from 'xlsx';
 import {
   Table,
@@ -49,6 +50,9 @@ function AgendamentoManager({ userProfile }) {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
   const [opcaoSelecionada, setOpcaoSelecionada] = useState('primeira');
 
+  // Debounce search term para melhorar performance (500ms delay)
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -64,7 +68,7 @@ function AgendamentoManager({ userProfile }) {
   useEffect(() => {
     filterAgendamentos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, filterStatus, agendamentos]);
+  }, [debouncedSearchTerm, filterStatus, agendamentos]);
 
   const loadAgendamentos = async () => {
     try {
@@ -102,16 +106,16 @@ function AgendamentoManager({ userProfile }) {
   const filterAgendamentos = () => {
     let filtered = [...agendamentos];
 
-    if (searchTerm) {
+    if (debouncedSearchTerm) {
       filtered = filtered.filter(ag =>
-        ag.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ag.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ag.telefone?.includes(searchTerm)
+        ag.nome_completo?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        ag.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        ag.telefone?.includes(debouncedSearchTerm)
       );
     }
 
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(ag => ag.status === filterStatus);
+      filtered = filtered.filter(ag => ag?.status === filterStatus);
     }
 
     setFilteredAgendamentos(filtered);
@@ -335,7 +339,7 @@ function AgendamentoManager({ userProfile }) {
 
   const printCallList = () => {
     // Filtrar apenas confirmados
-    const confirmados = agendamentos.filter(a => a.status === 'Confirmado');
+    const confirmados = (agendamentos || []).filter(a => a?.status === 'Confirmado');
 
     if (confirmados.length === 0) {
       message.warning('Nenhum agendamento confirmado para imprimir');
@@ -673,7 +677,7 @@ function AgendamentoManager({ userProfile }) {
             <Card style={{ borderRadius: 12, border: '1px solid #f0f0f0' }}>
               <Statistic
                 title="Total de Agendamentos"
-                value={agendamentos.length}
+                value={(agendamentos || []).length}
                 valueStyle={{ color: '#1a1a1a', fontSize: 32, fontWeight: 600 }}
               />
             </Card>
@@ -682,7 +686,7 @@ function AgendamentoManager({ userProfile }) {
             <Card style={{ borderRadius: 12, border: '1px solid #f59e0b' }}>
               <Statistic
                 title="Pendentes"
-                value={agendamentos.filter(a => a.status === 'Pendente de confirmação').length}
+                value={(agendamentos || []).filter(a => a?.status === 'Pendente de confirmação').length}
                 valueStyle={{ color: '#f59e0b', fontSize: 32, fontWeight: 600 }}
               />
             </Card>
@@ -691,7 +695,7 @@ function AgendamentoManager({ userProfile }) {
             <Card style={{ borderRadius: 12, border: '1px solid #10b981' }}>
               <Statistic
                 title="Confirmados"
-                value={agendamentos.filter(a => a.status === 'Confirmado').length}
+                value={(agendamentos || []).filter(a => a?.status === 'Confirmado').length}
                 valueStyle={{ color: '#10b981', fontSize: 32, fontWeight: 600 }}
               />
             </Card>

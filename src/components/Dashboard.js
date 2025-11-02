@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge, Drawer, Button } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge, Drawer, Button, message } from 'antd';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -60,6 +60,7 @@ function Dashboard({ session }) {
       setUserProfile(data);
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
+      message.error('Não foi possível carregar o perfil do usuário. Por favor, recarregue a página.');
     }
   };
 
