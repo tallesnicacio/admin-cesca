@@ -1275,9 +1275,7 @@ COMMENT ON COLUMN substituicoes.status IS 'pendente, aprovada, recusada';
 CREATE OR REPLACE VIEW vw_resumo_participacao_trabalhadores AS
 SELECT
   t.id as trabalhador_id,
-  t.numero,
   t.nome_completo,
-  t.grupo,
   t.status,
 
   -- Escalas do mês atual
@@ -1332,7 +1330,7 @@ LEFT JOIN substituicoes s ON s.trabalhador_original_id = t.id OR s.trabalhador_s
 LEFT JOIN trabalhadores_capacitacoes tc ON tc.trabalhador_id = t.id
 
 WHERE t.status = 'ativo'
-GROUP BY t.id, t.numero, t.nome_completo, t.grupo, t.status
+GROUP BY t.id, t.nome_completo, t.status
 ORDER BY t.nome_completo;
 
 -- View: Escalas por data com detalhes completos
@@ -1357,8 +1355,6 @@ SELECT
     json_build_object(
       'trabalhador_id', t.id,
       'nome', t.nome_completo,
-      'numero', t.numero,
-      'grupo', t.grupo,
       'posicao', ed.posicao_na_equipe,
       'eh_fixo', ed.eh_fixo
     ) ORDER BY ed.posicao_na_equipe
