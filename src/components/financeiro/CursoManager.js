@@ -192,15 +192,21 @@ function CursoManager({ userProfile }) {
   };
 
   // Confirmar exclusão
-  const handleDelete = async (curso) => {
+  const handleDelete = (curso) => {
+    console.log('handleDelete chamado para:', curso);
+
     Modal.confirm({
       title: 'Excluir Curso',
       content: `Tem certeza que deseja excluir o curso "${curso.nome}"? Esta ação não pode ser desfeita.`,
       okText: 'Excluir',
       okType: 'danger',
       cancelText: 'Cancelar',
+      centered: true,
+      zIndex: 9999,
+      maskClosable: true,
       onOk: async () => {
         try {
+          console.log('Tentando excluir curso ID:', curso.id);
           const { error } = await supabase
             .from('cursos')
             .delete()
@@ -218,6 +224,9 @@ function CursoManager({ userProfile }) {
             message.error('Erro ao excluir curso: ' + error.message);
           }
         }
+      },
+      onCancel: () => {
+        console.log('Exclusão cancelada');
       }
     });
   };
