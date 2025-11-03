@@ -879,8 +879,8 @@ SELECT
   COALESCE(SUM(CASE WHEN mc.tipo = 'entrada' THEN mc.valor ELSE -mc.valor END), 0) as saldo_periodo,
 
   -- Diferenças de caixa (quebras)
-  COALESCE(SUM(ABS(c.diferenca)), 0) FILTER (WHERE c.status = 'fechado') as total_diferencas,
-  COUNT(*) FILTER (WHERE c.status = 'fechado' AND ABS(c.diferenca) > 0) as dias_com_diferenca
+  COALESCE(SUM(CASE WHEN c.status = 'fechado' THEN ABS(c.diferenca) ELSE 0 END), 0) as total_diferencas,
+  COUNT(CASE WHEN c.status = 'fechado' AND ABS(c.diferenca) > 0 THEN 1 END) as dias_com_diferenca
 
 FROM caixas c
 LEFT JOIN movimentacoes_caixa mc ON mc.caixa_id = c.id
@@ -1308,17 +1308,19 @@ SELECT
   END) as ausencias,
 
   -- Substituições solicitadas
-  COUNT(DISTINCT s.id) FILTER (
-    WHERE s.trabalhador_original_id = t.id
+  COUNT(DISTINCT CASE
+    WHEN s.trabalhador_original_id = t.id
     AND s.data_solicitacao >= CURRENT_DATE - interval '3 months'
-  ) as substituicoes_solicitadas,
+    THEN s.id
+  END) as substituicoes_solicitadas,
 
   -- Substituições realizadas (quando substituiu alguém)
-  COUNT(DISTINCT s.id) FILTER (
-    WHERE s.trabalhador_substituto_id = t.id
+  COUNT(DISTINCT CASE
+    WHEN s.trabalhador_substituto_id = t.id
     AND s.status = 'aprovada'
     AND s.data_solicitacao >= CURRENT_DATE - interval '3 months'
-  ) as substituicoes_realizadas,
+    THEN s.id
+  END) as substituicoes_realizadas,
 
   -- Capacitações (quantos tipos de atendimento pode fazer)
   COUNT(DISTINCT tc.tipo_atendimento_id) as qtd_capacitacoes
@@ -1791,12 +1793,12 @@ SELECT
   t.telefone,
   t.email,
   t.status,
-  COUNT(p.id) FILTER (WHERE p.presente = true) as total_presencas,
-  COUNT(p.id) FILTER (WHERE p.presente = false) as total_ausencias,
+  COUNT(CASE WHEN p.presente = true THEN p.id END) as total_presencas,
+  COUNT(CASE WHEN p.presente = false THEN p.id END) as total_ausencias,
   COUNT(p.id) as total_giras,
   CASE
     WHEN COUNT(p.id) > 0 THEN
-      ROUND((COUNT(p.id) FILTER (WHERE p.presente = true)::NUMERIC / COUNT(p.id)::NUMERIC) * 100, 2)
+      ROUND((COUNT(CASE WHEN p.presente = true THEN p.id END)::NUMERIC / COUNT(p.id)::NUMERIC) * 100, 2)
     ELSE 0
   END as percentual_presenca
 FROM trabalhadores t
@@ -1813,8 +1815,8 @@ SELECT
   g.data,
   g.dia_semana,
   g.status,
-  COUNT(p.id) FILTER (WHERE p.presente = true) as total_presentes,
-  COUNT(p.id) FILTER (WHERE p.presente = false) as total_ausentes,
+  COUNT(CASE WHEN p.presente = true THEN p.id END) as total_presentes,
+  COUNT(CASE WHEN p.presente = false THEN p.id END) as total_ausentes,
   COUNT(p.id) as total_registros
 FROM giras g
 LEFT JOIN presencas p ON g.id = p.gira_id
