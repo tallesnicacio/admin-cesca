@@ -48,6 +48,10 @@ function CursoManager({ userProfile }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
 
+  // Estados do modal de confirmação de exclusão
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [cursoToDelete, setCursoToDelete] = useState(null);
+
   // Detectar resize para mobile
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -191,44 +195,45 @@ function CursoManager({ userProfile }) {
     }
   };
 
-  // Confirmar exclusão
+  // Abrir modal de confirmação de exclusão
   const handleDelete = (curso) => {
     console.log('handleDelete chamado para:', curso);
+    setCursoToDelete(curso);
+    setShowDeleteModal(true);
+  };
 
-    Modal.confirm({
-      title: 'Excluir Curso',
-      content: `Tem certeza que deseja excluir o curso "${curso.nome}"? Esta ação não pode ser desfeita.`,
-      okText: 'Excluir',
-      okType: 'danger',
-      cancelText: 'Cancelar',
-      centered: true,
-      zIndex: 9999,
-      maskClosable: true,
-      onOk: async () => {
-        try {
-          console.log('Tentando excluir curso ID:', curso.id);
-          const { error } = await supabase
-            .from('cursos')
-            .delete()
-            .eq('id', curso.id);
+  // Confirmar e executar exclusão
+  const confirmDelete = async () => {
+    if (!cursoToDelete) return;
 
-          if (error) throw error;
+    try {
+      console.log('Tentando excluir curso ID:', cursoToDelete.id);
+      const { error } = await supabase
+        .from('cursos')
+        .delete()
+        .eq('id', cursoToDelete.id);
 
-          message.success('Curso excluído com sucesso!');
-          loadCursos();
-        } catch (error) {
-          console.error('Erro ao excluir curso:', error);
-          if (error.code === '23503') {
-            message.error('Não é possível excluir este curso pois existem matrículas vinculadas');
-          } else {
-            message.error('Erro ao excluir curso: ' + error.message);
-          }
-        }
-      },
-      onCancel: () => {
-        console.log('Exclusão cancelada');
+      if (error) throw error;
+
+      message.success('Curso excluído com sucesso!');
+      setShowDeleteModal(false);
+      setCursoToDelete(null);
+      loadCursos();
+    } catch (error) {
+      console.error('Erro ao excluir curso:', error);
+      if (error.code === '23503') {
+        message.error('Não é possível excluir este curso pois existem matrículas vinculadas');
+      } else {
+        message.error('Erro ao excluir curso: ' + error.message);
       }
-    });
+    }
+  };
+
+  // Cancelar exclusão
+  const cancelDelete = () => {
+    console.log('Exclusão cancelada');
+    setShowDeleteModal(false);
+    setCursoToDelete(null);
   };
 
   // Formatar valor monetário
@@ -617,6 +622,25 @@ function CursoManager({ userProfile }) {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Modal
+        title="Excluir Curso"
+        open={showDeleteModal}
+        onOk={confirmDelete}
+        onCancel={cancelDelete}
+        okText="Excluir"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true }}
+        centered
+      >
+        <p>
+          Tem certeza que deseja excluir o curso <strong>"{cursoToDelete?.nome}"</strong>?
+        </p>
+        <p style={{ marginTop: 16, color: '#666' }}>
+          Esta ação não pode ser desfeita.
+        </p>
       </Modal>
     </div>
   );
