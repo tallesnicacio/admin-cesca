@@ -166,13 +166,12 @@ function Reports() {
           ag.segunda_opcao || '-',
           ag.status,
           ag.atendente || '-',
-          ag.canal_preferencial,
-          ag.observacoes || '-'
+          ag.canal_preferencial
         ]);
 
         doc.autoTable({
           startY: 30,
-          head: [['Data', 'Nome', 'Email', 'Telefone', '1ª Opção', '2ª Opção', 'Status', 'Atendente', 'Canal', 'Observações']],
+          head: [['Data', 'Nome', 'Email', 'Telefone', '1ª Opção', '2ª Opção', 'Status', 'Atendente', 'Canal']],
           body: agendamentosData,
           styles: { fontSize: 8 },
           headStyles: { fillColor: [102, 126, 234] }
@@ -291,14 +290,6 @@ function Reports() {
       render: (text) => text || '-',
       responsive: ['md'],
       width: isMobile ? undefined : 150
-    },
-    {
-      title: 'Observações',
-      dataIndex: 'observacoes',
-      key: 'observacoes',
-      render: (text) => text || '-',
-      responsive: ['xl'],
-      ellipsis: true
     }
   ];
 

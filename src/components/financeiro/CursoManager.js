@@ -197,7 +197,6 @@ function CursoManager({ userProfile }) {
 
   // Abrir modal de confirmação de exclusão
   const handleDelete = (curso) => {
-    console.log('handleDelete chamado para:', curso);
     setCursoToDelete(curso);
     setShowDeleteModal(true);
   };
@@ -634,6 +633,7 @@ function CursoManager({ userProfile }) {
         cancelText="Cancelar"
         okButtonProps={{ danger: true }}
         centered
+        destroyOnClose={true}
       >
         <p>
           Tem certeza que deseja excluir o curso <strong>"{cursoToDelete?.nome}"</strong>?

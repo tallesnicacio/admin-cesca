@@ -1,288 +1,183 @@
-# Admin CESCA
+# Supabase CLI
 
-Painel administrativo para gerenciar quizzes, usuários e visualizar relatórios do sistema CESCA.
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## 🚀 Tecnologias
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-- **React** 19.2.0
-- **Supabase** (autenticação e banco de dados)
-- **Lucide React** (ícones)
-- **jsPDF** + **jsPDF-AutoTable** (exportação PDF)
-- **XLSX** (exportação Excel)
-- **Docker** + **Docker Swarm** (deploy)
-- **Nginx** (servidor web)
-- **Traefik** (proxy reverso com SSL)
+This repository contains all the functionality for Supabase CLI.
 
-## 📋 Funcionalidades
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-### 🔐 Autenticação
-- Login via Supabase Auth
-- Validação de privilégios de admin
-- Logout seguro
+## Getting started
 
-### 📚 Gerenciamento de Quizzes
-- Listar todos os quizzes
-- Criar novos quizzes
-- Editar quizzes existentes
-- Excluir quizzes
-- Visualizar questões de cada quiz
-- Ativar/desativar quizzes
+### Install the CLI
 
-### 👥 Gerenciamento de Usuários
-- Listar todos os usuários
-- Buscar por nome, email ou CPF
-- Filtros: Todos, Ativos, Inativos, Admins
-- Ativar/Desativar usuários
-- Conceder/Remover privilégios de admin
-- Exportar lista de usuários para Excel
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
-### 📊 Relatórios e Estatísticas
-- Dashboard com métricas:
-  - Total de usuários
-  - Usuários ativos
-  - Total de quizzes
-  - Total de tentativas
-  - Média geral de notas
-  - Taxa de aprovação
-- Resultados detalhados por quiz
-- Filtro por quiz específico
-- Exportação para PDF e Excel
-
-## 🔧 Configuração Local
-
-### 1. Instalar Dependências
 ```bash
-npm install
+npm i supabase --save-dev
 ```
 
-### 2. Configurar Variáveis de Ambiente
-Copie o arquivo `.env.example` para `.env`:
+To install the beta release channel:
+
 ```bash
-cp .env.example .env
+npm i supabase@beta --save-dev
 ```
 
-Edite o arquivo `.env` com suas credenciais do Supabase:
-```env
-REACT_APP_SUPABASE_URL=https://seu-projeto.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=sua_chave_anonima_aqui
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
 ```
 
-### 3. Iniciar em Desenvolvimento
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+
+<details>
+  <summary><b>macOS</b></summary>
+
+  Available via [Homebrew](https://brew.sh). To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Windows</b></summary>
+
+  Available via [Scoop](https://scoop.sh). To install:
+
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
+
+  To upgrade:
+
+  ```powershell
+  scoop update supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Linux</b></summary>
+
+  Available via [Homebrew](https://brew.sh) and Linux packages.
+
+  #### via Homebrew
+
+  To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+
+  #### via Linux packages
+
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
+
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
+
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
+
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
+
+<details>
+  <summary><b>Other Platforms</b></summary>
+
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
+
+  Add a symlink to the binary in `$PATH` for easier access:
+
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
+
+  This works on other non-standard Linux distros.
+</details>
+
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
+
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
+
+  ```bash
+  pkgx install supabase
+  ```
+
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
+
+### Run the CLI
+
 ```bash
-npm start
+supabase bootstrap
 ```
 
-A aplicação estará disponível em `http://localhost:3000`
+Or using npx:
 
-### 4. Build de Produção
 ```bash
-npm run build
+npx supabase bootstrap
 ```
 
-O build será gerado na pasta `build/`
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
 
-## 🐳 Deploy com Docker
+## Docs
 
-### Build da Imagem
-```bash
-docker build -t admin-cesca:latest .
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
+
+## Breaking changes
+
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
+
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
+
+## Developing
+
+To run from source:
+
+```sh
+# Go >= 1.22
+go run . help
 ```
-
-### Deploy com Docker Swarm
-```bash
-docker stack deploy -c docker-compose.yml admin-cesca
-```
-
-### Verificar Status
-```bash
-docker service ls | grep admin-cesca
-docker service ps admin-cesca_admin-cesca
-docker service logs admin-cesca_admin-cesca
-```
-
-### Remover Deploy
-```bash
-docker stack rm admin-cesca
-```
-
-## 🌐 Acesso em Produção
-
-A aplicação está disponível em: **https://admin.cesca.digital**
-
-### Configuração DNS
-Certifique-se de que o DNS aponta para o servidor:
-```
-admin.cesca.digital -> IP do servidor
-```
-
-### SSL/HTTPS
-O SSL é gerenciado automaticamente pelo Traefik com Let's Encrypt.
-
-## 📁 Estrutura do Projeto
-
-```
-admin-cesca/
-├── public/
-│   ├── favicon.ico
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── Dashboard.js         # Dashboard principal
-│   │   ├── Dashboard.css
-│   │   ├── Login.js             # Tela de login
-│   │   ├── Login.css
-│   │   ├── QuizManager.js       # Gerenciamento de quizzes
-│   │   ├── QuizManager.css
-│   │   ├── UserManager.js       # Gerenciamento de usuários
-│   │   ├── UserManager.css
-│   │   ├── Reports.js           # Relatórios e estatísticas
-│   │   └── Reports.css
-│   ├── App.js                   # Componente raiz
-│   ├── App.css
-│   ├── index.js                 # Entry point
-│   └── supabaseClient.js        # Configuração do Supabase
-├── .dockerignore
-├── .env                         # Variáveis de ambiente (não comitar!)
-├── .env.example                 # Template de variáveis
-├── .gitignore
-├── docker-compose.yml           # Configuração Docker Swarm
-├── Dockerfile                   # Build da imagem
-├── nginx.conf                   # Configuração Nginx
-├── package.json
-└── README.md
-```
-
-## 🗄️ Estrutura do Banco de Dados (Supabase)
-
-### Tabela: `profiles`
-```sql
-- id (uuid, FK para auth.users)
-- name (text)
-- email (text)
-- cpf (text)
-- phone (text)
-- is_active (boolean)
-- is_admin (boolean)
-- created_at (timestamp)
-```
-
-### Tabela: `quizzes`
-```sql
-- id (uuid, PK)
-- title (text)
-- description (text)
-- passing_score (integer)
-- is_active (boolean)
-- created_at (timestamp)
-```
-
-### Tabela: `questions`
-```sql
-- id (uuid, PK)
-- quiz_id (uuid, FK)
-- question (text)
-- options (jsonb array)
-- correct_answer (integer)
-- created_at (timestamp)
-```
-
-### Tabela: `quiz_attempts`
-```sql
-- id (uuid, PK)
-- user_id (uuid, FK)
-- quiz_id (uuid, FK)
-- score (numeric)
-- completed (boolean)
-- completed_at (timestamp)
-- created_at (timestamp)
-```
-
-## 🔒 Segurança
-
-### Proteção de Credenciais
-- ✅ Credenciais do Supabase em `.env`
-- ✅ `.env` adicionado ao `.gitignore`
-- ✅ `.env.example` como template
-- ✅ Validação de variáveis de ambiente no `supabaseClient.js`
-
-### Autenticação
-- Login com email e senha via Supabase Auth
-- Verificação de privilégios de admin (campo `is_admin`)
-- Proteção de rotas (usuários não-admin são desconectados)
-
-### Headers de Segurança (nginx)
-- `X-Frame-Options: SAMEORIGIN`
-- `X-Content-Type-Options: nosniff`
-- `X-XSS-Protection: 1; mode=block`
-
-## 📝 Comandos Úteis
-
-### Docker
-```bash
-# Ver logs
-docker service logs -f admin-cesca_admin-cesca
-
-# Escalar serviço
-docker service scale admin-cesca_admin-cesca=2
-
-# Atualizar serviço
-docker service update --force admin-cesca_admin-cesca
-
-# Remover serviço
-docker stack rm admin-cesca
-```
-
-### NPM
-```bash
-# Instalar dependências
-npm install
-
-# Desenvolvimento
-npm start
-
-# Build
-npm run build
-
-# Testes
-npm test
-```
-
-## 🎨 Customização
-
-### Cores e Tema
-As cores principais estão definidas nos arquivos CSS:
-- Gradiente principal: `#667eea` → `#764ba2`
-- Background: `#f5f7fa`
-
-### Logo e Branding
-Substitua os arquivos em `public/`:
-- `favicon.ico`
-- Atualize `index.html` com título e meta tags
-
-## 🐛 Troubleshooting
-
-### Erro: "Missing Supabase environment variables"
-**Solução:** Verifique se o arquivo `.env` existe e contém as variáveis corretas.
-
-### Erro: "Acesso negado. Apenas administradores podem acessar."
-**Solução:** Certifique-se de que o usuário tem o campo `is_admin = true` na tabela `profiles`.
-
-### Deploy não funciona
-**Solução:**
-1. Verifique se a imagem foi construída: `docker images | grep admin-cesca`
-2. Verifique logs: `docker service logs admin-cesca_admin-cesca`
-3. Verifique rede: `docker network ls | grep network_public`
-
-### SSL não funciona
-**Solução:**
-1. Verifique DNS: `nslookup admin.cesca.digital`
-2. Verifique Traefik: `docker service ps traefik`
-3. Aguarde alguns minutos para certificado ser gerado
-
-## 📄 Licença
-
-Este projeto é privado e de uso exclusivo do CESCA.
-
-## 👨‍💻 Autor
-
-Desenvolvido com Claude Code

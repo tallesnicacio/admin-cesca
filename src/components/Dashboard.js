@@ -13,6 +13,8 @@ import {
   DollarOutlined,
   CalendarTwoTone,
   MenuOutlined,
+  FormOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
 
@@ -27,6 +29,8 @@ const PresencaReports = lazy(() => import('./PresencaReports'));
 const AdvertenciaManager = lazy(() => import('./AdvertenciaManager'));
 const FinanceiroManager = lazy(() => import('./financeiro/FinanceiroManager'));
 const EscalasManager = lazy(() => import('./escalas/EscalasManager'));
+const FormularioEditor = lazy(() => import('./FormularioEditor'));
+const AlterarSenha = lazy(() => import('./AlterarSenha'));
 
 // Componente de loading
 const LoadingFallback = () => (
@@ -90,6 +94,11 @@ function Dashboard({ session }) {
       label: 'Agendamentos',
     },
     {
+      key: 'editor-quiz',
+      icon: <FormOutlined style={{ fontSize: 16 }} />,
+      label: 'Editor de Quiz',
+    },
+    {
       key: 'presenca',
       icon: <CheckSquareOutlined style={{ fontSize: 16 }} />,
       label: 'Presença',
@@ -117,6 +126,12 @@ function Dashboard({ session }) {
   ];
 
   const userMenuItems = [
+    {
+      key: 'alterar-senha',
+      icon: <LockOutlined />,
+      label: 'Alterar Senha',
+      onClick: () => setActiveTab('alterar-senha'),
+    },
     {
       key: 'configuracoes',
       icon: <SettingOutlined />,
@@ -331,11 +346,13 @@ function Dashboard({ session }) {
       >
         <Suspense fallback={<LoadingFallback />}>
           {activeTab === 'agendamentos' && <AgendamentoManager userProfile={userProfile} />}
+          {activeTab === 'editor-quiz' && <FormularioEditor />}
           {activeTab === 'presenca' && renderPresencaContent()}
           {activeTab === 'escalas' && <EscalasManager userProfile={userProfile} />}
           {activeTab === 'financeiro' && <FinanceiroManager userProfile={userProfile} />}
           {activeTab === 'usuarios' && <UserManager />}
           {activeTab === 'configuracoes' && <Configuracoes />}
+          {activeTab === 'alterar-senha' && <AlterarSenha />}
           {activeTab === 'reports' && <Reports />}
         </Suspense>
       </Content>
