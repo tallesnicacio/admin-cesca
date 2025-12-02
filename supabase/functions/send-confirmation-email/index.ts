@@ -147,8 +147,33 @@ serve(async (req) => {
   }
 })
 
+// Função para obter a próxima sexta-feira
+function getProximaSexta(): Date {
+  const hoje = new Date()
+  const diaSemana = hoje.getDay() // 0 = domingo, 5 = sexta
+  let diasAteProximaSexta = 5 - diaSemana
+
+  // Se hoje é sexta ou passou da sexta, pega a próxima sexta
+  if (diasAteProximaSexta <= 0) {
+    diasAteProximaSexta += 7
+  }
+
+  const proximaSexta = new Date(hoje)
+  proximaSexta.setDate(hoje.getDate() + diasAteProximaSexta)
+
+  return proximaSexta
+}
+
 // Template HTML do email
 function generateEmailTemplate(agendamento: any, tipoAtendimento: string): string {
+  const proximaGira = getProximaSexta()
+  const dataFormatada = proximaGira.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+
   return `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -256,13 +281,17 @@ function generateEmailTemplate(agendamento: any, tipoAtendimento: string): strin
     <div class="content">
       <p class="greeting">Olá, <strong>${agendamento.nome_completo}</strong>!</p>
 
-      <p>É com alegria que confirmamos o seu agendamento para <strong>${tipoAtendimento}</strong>.</p>
+      <p>É com alegria que confirmamos o seu agendamento para <strong>${tipoAtendimento}</strong> na próxima gira.</p>
 
       <div class="info-box">
         <h2>📋 Detalhes do Agendamento</h2>
         <div class="info-item">
           <span class="info-label">Tipo de Atendimento:</span>
           <span class="info-value">${tipoAtendimento}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Data da Próxima Gira:</span>
+          <span class="info-value" style="font-weight: 600; color: #667eea;">${dataFormatada}</span>
         </div>
         <div class="info-item">
           <span class="info-label">Nome:</span>
@@ -279,7 +308,7 @@ function generateEmailTemplate(agendamento: any, tipoAtendimento: string): strin
       </div>
 
       <div class="highlight">
-        <strong>📞 Atenção:</strong> Em breve, nossa equipe entrará em contato através do canal preferencial informado (${agendamento.canal_preferencial}) para confirmar os detalhes e horários disponíveis.
+        <strong>⚠️ Atenção:</strong> Se precisar cancelar, avise por e-mail até 12h do dia da gira. Caso não desmarque, fica suspenso o agendamento por 2 semanas.
       </div>
 
       <p>Caso você tenha alguma dúvida ou precise fazer alguma alteração, por favor entre em contato conosco.</p>
