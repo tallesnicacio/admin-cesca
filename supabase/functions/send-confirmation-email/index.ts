@@ -147,26 +147,34 @@ serve(async (req) => {
   }
 })
 
-// Função para obter a próxima sexta-feira
-function getProximaSexta(): Date {
+// Função para obter a próxima gira (segunda ou sexta-feira)
+function getProximaGira(): Date {
   const hoje = new Date()
-  const diaSemana = hoje.getDay() // 0 = domingo, 5 = sexta
-  let diasAteProximaSexta = 5 - diaSemana
+  const diaSemana = hoje.getDay() // 0 = domingo, 1 = segunda, 5 = sexta
 
-  // Se hoje é sexta ou passou da sexta, pega a próxima sexta
-  if (diasAteProximaSexta <= 0) {
-    diasAteProximaSexta += 7
+  let diasAteProximaGira = 0
+
+  if (diaSemana === 0) { // Domingo
+    diasAteProximaGira = 1 // Próxima segunda
+  } else if (diaSemana === 1) { // Segunda
+    diasAteProximaGira = 4 // Próxima sexta
+  } else if (diaSemana === 2 || diaSemana === 3 || diaSemana === 4) { // Terça, Quarta ou Quinta
+    diasAteProximaGira = 5 - diaSemana // Próxima sexta
+  } else if (diaSemana === 5) { // Sexta
+    diasAteProximaGira = 3 // Próxima segunda
+  } else if (diaSemana === 6) { // Sábado
+    diasAteProximaGira = 2 // Próxima segunda
   }
 
-  const proximaSexta = new Date(hoje)
-  proximaSexta.setDate(hoje.getDate() + diasAteProximaSexta)
+  const proximaGira = new Date(hoje)
+  proximaGira.setDate(hoje.getDate() + diasAteProximaGira)
 
-  return proximaSexta
+  return proximaGira
 }
 
 // Template HTML do email
 function generateEmailTemplate(agendamento: any, tipoAtendimento: string): string {
-  const proximaGira = getProximaSexta()
+  const proximaGira = getProximaGira()
   const dataFormatada = proximaGira.toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
