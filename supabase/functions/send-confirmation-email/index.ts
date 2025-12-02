@@ -99,7 +99,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Centro Espírita Santa Clara de Assis <onboarding@resend.dev>',
+        from: 'Centro Espírita Santa Clara de Assis <agendamento@mail.cesca.digital>',
         to: [agendamento.email],
         subject: 'Confirmação de Agendamento - CESCA',
         html: generateEmailTemplate(agendamento, tipoAtendimento),
