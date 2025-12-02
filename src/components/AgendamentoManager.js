@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useDebounce } from '../hooks/useDebounce';
 import logger from '../utils/logger';
 import * as XLSX from 'xlsx';
+import ConfirmacaoEmailModal from './ConfirmacaoEmailModal';
 import {
   Table,
   Button,
@@ -29,8 +30,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   PrinterOutlined,
-  ExclamationCircleOutlined,
-  InfoCircleOutlined
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -50,6 +50,9 @@ function AgendamentoManager({ userProfile }) {
   const [modalExcluirVisible, setModalExcluirVisible] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
   const [opcaoSelecionada, setOpcaoSelecionada] = useState('primeira');
+  const [modalEmailVisible, setModalEmailVisible] = useState(false);
+  const [agendamentoParaEmail, setAgendamentoParaEmail] = useState(null);
+  const [opcaoEscolhidaEmail, setOpcaoEscolhidaEmail] = useState('primeira');
 
   // Debounce search term para melhorar performance (500ms delay)
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -141,6 +144,15 @@ function AgendamentoManager({ userProfile }) {
         logger.log('🔄 Chamando handleUpdateStatus...');
         await handleUpdateStatus(agendamento.id, 'Confirmado', nomeAtendente, 'primeira');
         logger.log('✅ handleUpdateStatus completou sem erros');
+
+        // Após confirmar, mostrar modal de envio de email
+        setAgendamentoParaEmail(agendamento);
+        setOpcaoEscolhidaEmail('primeira');
+
+        // Aguardar um pouco antes de mostrar o modal de email
+        setTimeout(() => {
+          setModalEmailVisible(true);
+        }, 300);
       } catch (error) {
         logger.error('❌ ERRO ao confirmar agendamento:', error);
         message.error('Erro ao confirmar agendamento: ' + error.message);
@@ -169,8 +181,18 @@ function AgendamentoManager({ userProfile }) {
         nomeAtendente,
         opcaoSelecionada
       );
+
+      // Após confirmar, mostrar modal de envio de email
+      setAgendamentoParaEmail(agendamentoSelecionado);
+      setOpcaoEscolhidaEmail(opcaoSelecionada);
+
       setModalOpcaoVisible(false);
       setAgendamentoSelecionado(null);
+
+      // Aguardar um pouco antes de mostrar o próximo modal
+      setTimeout(() => {
+        setModalEmailVisible(true);
+      }, 300);
     } catch (error) {
       logger.error('Erro ao confirmar:', error);
     } finally {
@@ -327,8 +349,7 @@ function AgendamentoManager({ userProfile }) {
       'Opção Escolhida': ag.opcao_escolhida === 'primeira' ? '1ª Opção' : ag.opcao_escolhida === 'segunda' ? '2ª Opção' : '-',
       'Canal': ag.canal_preferencial,
       'Status': ag.status,
-      'Atendente': ag.atendente || '-',
-      'Observações': ag.observacoes || '-'
+      'Atendente': ag.atendente || '-'
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -445,10 +466,9 @@ function AgendamentoManager({ userProfile }) {
           <table>
             <thead>
               <tr>
-                <th style="width: 5%">#</th>
-                <th style="width: 40%">Nome</th>
-                <th style="width: 25%">Telefone</th>
-                <th style="width: 30%">Observações</th>
+                <th style="width: 10%">#</th>
+                <th style="width: 60%">Nome</th>
+                <th style="width: 30%">Telefone</th>
               </tr>
             </thead>
             <tbody>
@@ -457,7 +477,6 @@ function AgendamentoManager({ userProfile }) {
                   <td>${index + 1}</td>
                   <td><strong>${ag.nome_completo}</strong></td>
                   <td>${ag.telefone}</td>
-                  <td>${ag.observacoes || '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -516,16 +535,7 @@ function AgendamentoManager({ userProfile }) {
       title: 'Nome',
       dataIndex: 'nome_completo',
       key: 'nome_completo',
-      render: (nome, record) => (
-        <Space>
-          <Text strong>{nome}</Text>
-          {record.observacoes && (
-            <Tooltip title={record.observacoes}>
-              <InfoCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
-            </Tooltip>
-          )}
-        </Space>
-      ),
+      render: (nome) => <Text strong>{nome}</Text>,
       sorter: (a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''),
     },
     {
@@ -858,6 +868,17 @@ function AgendamentoManager({ userProfile }) {
           </div>
         )}
       </Modal>
+
+      {/* Modal de Confirmação de Envio de Email */}
+      <ConfirmacaoEmailModal
+        visible={modalEmailVisible}
+        onClose={() => {
+          setModalEmailVisible(false);
+          setAgendamentoParaEmail(null);
+        }}
+        agendamento={agendamentoParaEmail}
+        opcaoEscolhida={opcaoEscolhidaEmail}
+      />
     </div>
   );
 }
