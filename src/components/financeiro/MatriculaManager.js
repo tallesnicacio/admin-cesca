@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
-  // UserOutlined, // Não utilizado
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
   BookOutlined,
-  CalendarOutlined
 } from '@ant-design/icons';
 import {
   Card,
@@ -63,11 +61,13 @@ function MatriculaManager({ userProfile }) {
   // Carregar dados ao montar componente
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filtrar matrículas quando filtros mudarem
   useEffect(() => {
     filterMatriculas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, filterStatus, filterCurso, matriculas]);
 
   // Função para carregar todos os dados

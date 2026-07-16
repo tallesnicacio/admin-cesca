@@ -7,7 +7,6 @@ import {
   CreditCardOutlined,
   WalletOutlined,
   FileTextOutlined,
-  PieChartOutlined,
 } from '@ant-design/icons';
 
 import AlunoManager from './AlunoManager';
@@ -103,19 +102,6 @@ function FinanceiroManager({ userProfile }) {
       >
         {renderTabContent()}
       </div>
-    </div>
-  );
-}
-
-// Componente de Visão Geral Financeira (placeholder)
-function VisaoGeralFinanceira({ userProfile }) {
-  return (
-    <div style={{ padding: 60, textAlign: 'center' }}>
-      <PieChartOutlined style={{ fontSize: 64, color: '#6366f1', marginBottom: 16 }} />
-      <Title level={2}>Visão Geral Financeira</Title>
-      <Text type="secondary" style={{ fontSize: 15 }}>
-        Dashboard com indicadores, gráficos e resumo financeiro será implementado em breve.
-      </Text>
     </div>
   );
 }

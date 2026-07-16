@@ -4,7 +4,6 @@ import {
   Card,
   Button,
   Select,
-  Spin,
   Space,
   Typography,
   Modal,
@@ -14,7 +13,6 @@ import {
   Descriptions,
   Badge,
   Input,
-  Alert,
 } from 'antd';
 import {
   EyeOutlined,
@@ -25,7 +23,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 
-import { detectarConflito, validarAlocacao } from './utils/detectorConflitos';
+import { validarAlocacao } from './utils/detectorConflitos';
 import { agruparEscalasPorData, formatarData } from './utils/algoritmoEscalas';
 
 const { Title, Text } = Typography;
@@ -34,7 +32,6 @@ const { Option } = Select;
 function PainelRevisao({ userProfile }) {
   const [loading, setLoading] = useState(false);
   const [escalas, setEscalas] = useState([]);
-  const [escalasFiltradas, setEscalasFiltradas] = useState([]);
   const [escalaMensal, setEscalaMensal] = useState(null);
 
   // Dados auxiliares
@@ -130,7 +127,6 @@ function PainelRevisao({ userProfile }) {
 
       setEscalaMensal(mensal);
       setEscalas(escalasFormatadas);
-      setEscalasFiltradas(escalasFormatadas);
       message.success('Escalas carregadas!');
     } catch (error) {
       console.error('Erro ao carregar escalas:', error);

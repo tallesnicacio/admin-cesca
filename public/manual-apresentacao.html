@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual CESCA — Apresentação</title>
+  <style>
+    @page { size: A4; margin: 0; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:       #667eea;
+      --purple-dark:  #5a6fd6;
+      --purple-deep:  #4c1d95;
+      --violet:       #9333ea;
+      --green:        #10b981;
+      --green-light:  #d1fae5;
+      --green-dark:   #065f46;
+      --amber:        #f59e0b;
+      --amber-light:  #fef3c7;
+      --amber-dark:   #78350f;
+      --red:          #ef4444;
+      --red-light:    #fee2e2;
+      --red-dark:     #991b1b;
+      --gray:         #6b7280;
+      --gray-light:   #f9fafb;
+      --border:       #e5e7eb;
+      --text:         #1f2937;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      background: #d1d5db;
+    }
+
+    /* ===== SLIDE ===== */
+    .slide {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      margin: 0 auto 12px;
+    }
+
+    .slide:last-child { page-break-after: avoid; }
+
+    /* ===== SCREEN WRAPPER (print hint) ===== */
+    .print-hint {
+      background: #1e40af;
+      color: white;
+      text-align: center;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+    }
+
+    .print-hint button {
+      background: white;
+      color: #1e40af;
+      border: none;
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-left: 12px;
+    }
+
+    @media print { .print-hint { display: none; } }
+
+    /* ===== GRADIENTS ===== */
+    .grad-purple { background: linear-gradient(135deg, #667eea 0%, #9333ea 55%, #6d28d9 100%); }
+    .grad-dark   { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4c1d95 100%); }
+    .grad-green  { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+    .grad-amber  { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
+    .grad-red    { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
+
+    /* ===== SLIDE HEADER BAND ===== */
+    .slide-header {
+      padding: 22px 32px 18px;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .slide-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .slide-header-icon {
+      width: 46px;
+      height: 46px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .slide-header-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.75;
+      margin-bottom: 3px;
+    }
+
+    .slide-header h2 {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .slide-header .slide-num {
+      margin-left: auto;
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ===== SLIDE BODY ===== */
+    .slide-body {
+      flex: 1;
+      padding: 24px 32px;
+      overflow: hidden;
+    }
+
+    /* ===== COVER SLIDE ===== */
+    .slide-cover {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+      padding: 48px 40px;
+      position: relative;
+    }
+
+    .cover-deco {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .cover-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid rgba(255,255,255,0.35);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      margin-bottom: 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-org {
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.75;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-title {
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-subtitle {
+      font-size: 15px;
+      opacity: 0.85;
+      line-height: 1.6;
+      max-width: 320px;
+      margin-bottom: 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-divider {
+      width: 60px;
+      height: 3px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 2px;
+      margin: 0 auto 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-badges {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-badge {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .cover-urls {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      background: rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 16px 28px;
+    }
+
+    .cover-url {
+      text-align: center;
+    }
+
+    .cover-url-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.6;
+      margin-bottom: 3px;
+    }
+
+    .cover-url-val {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ===== BACK COVER ===== */
+    .slide-back {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+      padding: 48px 40px;
+      gap: 0;
+      position: relative;
+    }
+
+    /* ===== TWO COLUMNS ===== */
+    .cols {
+      display: grid;
+      gap: 14px;
+    }
+
+    .cols-2 { grid-template-columns: 1fr 1fr; }
+    .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* ===== CARD ===== */
+    .card {
+      border-radius: 10px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+    }
+
+    .card-purple { background: #ede9fe; border-color: #c4b5fd; }
+    .card-green  { background: var(--green-light); border-color: #6ee7b7; }
+    .card-amber  { background: var(--amber-light); border-color: #fcd34d; }
+    .card-red    { background: var(--red-light);   border-color: #fca5a5; }
+    .card-gray   { background: var(--gray-light);  border-color: var(--border); }
+    .card-dark   { background: #1e1b4b; border-color: #312e81; color: white; }
+
+    .card-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+
+    .card-dark .card-title { color: white; }
+
+    .card-text {
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--gray);
+    }
+
+    .card-dark .card-text { color: #c4b5fd; }
+
+    /* ===== STEP ROW ===== */
+    .step-rows { display: flex; flex-direction: column; gap: 10px; }
+
+    .step-row {
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
+      background: var(--gray-light);
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+    }
+
+    .step-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--violet));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .step-row-content { flex: 1; }
+
+    .step-row-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .step-row-desc {
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.45;
+    }
+
+    /* ===== RULE LIST ===== */
+    .rule-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .rule-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .rule-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--violet));
+      color: white;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ===== ALERT ===== */
+    .alert {
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 12.5px;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+
+    .alert-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .alert-info    { background: #ede9fe; border-left: 4px solid var(--purple); color: #312e81; }
+    .alert-warning { background: var(--amber-light); border-left: 4px solid var(--amber); color: var(--amber-dark); }
+    .alert-success { background: var(--green-light); border-left: 4px solid var(--green); color: var(--green-dark); }
+    .alert-danger  { background: var(--red-light); border-left: 4px solid var(--red); color: var(--red-dark); }
+
+    /* ===== STATUS BADGE ===== */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-yellow  { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .badge-green   { background: var(--green-light); color: var(--green-dark); border: 1px solid #6ee7b7; }
+    .badge-red     { background: var(--red-light); color: var(--red-dark); border: 1px solid #fca5a5; }
+    .badge-gray    { background: #f3f4f6; color: #374151; border: 1px solid var(--border); }
+    .badge-purple  { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+
+    /* ===== TABLE ===== */
+    .stbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .stbl th {
+      background: var(--gray-light);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--gray);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stbl td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .stbl tr:last-child td { border-bottom: none; }
+
+    /* ===== SECTION LABEL ===== */
+    .section-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--purple);
+      border-left: 3px solid var(--purple);
+      padding-left: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* ===== DIVIDER ===== */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    /* ===== FLOW ARROW ===== */
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--purple);
+      font-size: 18px;
+      margin: 2px 0;
+    }
+
+    /* ===== HIGHLIGHT BOX ===== */
+    .highlight {
+      background: linear-gradient(135deg, #667eea15, #9333ea10);
+      border: 1px solid #c4b5fd;
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+
+    /* ===== TOGGLE VISUAL ===== */
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 14px;
+      background: var(--gray-light);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .toggle-pill {
+      width: 42px;
+      height: 23px;
+      border-radius: 12px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      position: relative;
+    }
+
+    .toggle-on  { background: var(--green); }
+    .toggle-off { background: #d1d5db; }
+
+    .toggle-pill::after {
+      content: '';
+      position: absolute;
+      width: 17px;
+      height: 17px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle-on::after  { left: calc(100% - 20px); }
+    .toggle-off::after { left: 3px; }
+
+    .toggle-info { flex: 1; }
+    .toggle-title { font-weight: 700; font-size: 13px; color: var(--text); margin-bottom: 3px; }
+    .toggle-desc  { font-size: 11.5px; color: var(--gray); line-height: 1.45; }
+
+    /* ===== SLIDE FOOTER BAR ===== */
+    .slide-footer {
+      background: var(--gray-light);
+      border-top: 1px solid var(--border);
+      padding: 8px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .slide-footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      color: var(--gray);
+      font-weight: 600;
+    }
+
+    .slide-footer-brand img {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .slide-footer-page {
+      font-size: 10px;
+      color: var(--gray);
+    }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: white; }
+      .print-hint { display: none !important; }
+      .slide { margin: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PRINT HINT (screen only) -->
+<div class="print-hint">
+  Para gerar o PDF: pressione <strong>Ctrl + P</strong> (Windows) ou <strong>Cmd + P</strong> (Mac) &rarr; selecione <strong>"Salvar como PDF"</strong> &rarr; marque <strong>"Sem margens"</strong>
+  <button onclick="window.print()">&#128424; Imprimir / Salvar PDF</button>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 1 — CAPA                                               -->
+<!-- ============================================================ -->
+<div class="slide grad-purple slide-cover">
+  <!-- Deco circles -->
+  <div class="cover-deco" style="width:320px;height:320px;top:-120px;right:-100px;"></div>
+  <div class="cover-deco" style="width:200px;height:200px;bottom:-80px;left:-60px;"></div>
+  <div class="cover-deco" style="width:120px;height:120px;bottom:60px;right:40px;"></div>
+
+  <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA" class="cover-logo">
+  <div class="cover-org">Centro Espírita Santa Clara de Assis</div>
+  <h1 class="cover-title">Manual de<br>Agendamentos</h1>
+  <div class="cover-subtitle">Sistema de gestão de agendamentos e confirmação de presença nas giras</div>
+  <div class="cover-divider"></div>
+  <div class="cover-badges">
+    <span class="cover-badge">&#x1F4C5; Fevereiro 2026</span>
+    <span class="cover-badge">Versão 2.0</span>
+    <span class="cover-badge">Uso Interno</span>
+  </div>
+  <div class="cover-urls">
+    <div class="cover-url">
+      <div class="cover-url-label">Consulente</div>
+      <div class="cover-url-val">agendamento.cesca.digital</div>
+    </div>
+    <div class="cover-url">
+      <div class="cover-url-label">Operador</div>
+      <div class="cover-url-val">admin.cesca.digital</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 2 — VISÃO GERAL                                        -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-purple">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128203;</div>
+      <div>
+        <div class="slide-header-label">Introdução</div>
+        <h2>Visão Geral do Sistema</h2>
+      </div>
+      <div class="slide-num">2</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <p style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:18px;">
+      O sistema de agendamentos do CESCA permite que consulentes solicitem atendimentos espirituais de forma simples e organizada, e que os operadores gerenciem tudo pelo painel administrativo.
+    </p>
+
+    <div class="cols cols-2" style="margin-bottom:16px;">
+      <div class="card card-purple">
+        <span class="card-icon">&#127760;</span>
+        <div class="card-title" style="color:#5b21b6;">Portal do Consulente</div>
+        <div class="card-text">Formulário público acessível a qualquer pessoa. Sem necessidade de login. Disponível em <strong>agendamento.cesca.digital</strong></div>
+      </div>
+      <div class="card card-gray">
+        <span class="card-icon">&#9881;&#65039;</span>
+        <div class="card-title">Painel Administrativo</div>
+        <div class="card-text">Exclusivo para operadores e administradores do CESCA. Requer login com usuário e senha. Disponível em <strong>admin.cesca.digital</strong></div>
+      </div>
+    </div>
+
+    <div class="section-label">Principais funcionalidades</div>
+    <div class="cols cols-3" style="gap:10px;">
+      <div style="background:#ede9fe;border-radius:9px;padding:13px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:6px;">&#128221;</div>
+        <div style="font-size:12px;font-weight:700;color:#5b21b6;">Agendamentos</div>
+        <div style="font-size:11px;color:#7c3aed;margin-top:3px;">Recepção e gestão de solicitações</div>
+      </div>
+      <div style="background:var(--green-light);border-radius:9px;padding:13px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:6px;">&#9989;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--green-dark);">Confirmação</div>
+        <div style="font-size:11px;color:#059669;margin-top:3px;">E-mail automático ao consulente</div>
+      </div>
+      <div style="background:var(--amber-light);border-radius:9px;padding:13px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:6px;">&#128101;</div>
+        <div style="font-size:12px;font-weight:700;color:var(--amber-dark);">Presença</div>
+        <div style="font-size:11px;color:#b45309;margin-top:3px;">Registro após a gira com suspensão automática</div>
+      </div>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:16px;">
+      <span class="alert-icon">&#128336;</span>
+      <span>Por padrão, os agendamentos são aceitos apenas às <strong>quartas-feiras e sábados</strong>, a partir das <strong>7h da manhã</strong>. Esse comportamento pode ser ajustado nas Configurações.</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">2 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 3 — FLUXO DO CONSULENTE                               -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-purple">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128100;</div>
+      <div>
+        <div class="slide-header-label">Para o Consulente</div>
+        <h2>Fluxo de Agendamento</h2>
+      </div>
+      <div class="slide-num">3</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="step-rows">
+      <div class="step-row">
+        <div class="step-circle">1</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Acesso ao portal</div>
+          <div class="step-row-desc">O consulente acessa <strong>agendamento.cesca.digital</strong> e clica em "Começar" na tela de boas-vindas.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">2</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Leitura das regras</div>
+          <div class="step-row-desc">Exibe todas as regras da casa. O consulente deve rolar a tela e ler atentamente antes de avançar.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">3</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Aceite — dois checkboxes obrigatórios</div>
+          <div class="step-row-desc">Confirmar leitura das regras <strong>e</strong> consentir com uso do e-mail para comunicação. Ambos são exigidos para prosseguir.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">4&ndash;6</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Dados pessoais</div>
+          <div class="step-row-desc">Nome completo (com sobrenome), e-mail e telefone (DDD + número). O e-mail receberá a confirmação.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">7&ndash;8</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Escolha das opções de atendimento</div>
+          <div class="step-row-desc">1ª opção (principal) e 2ª opção (substituta, pode ser "Nenhum"). A lista exclui menores de Psicografia e Baralho automaticamente.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">9</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Confirmação do e-mail</div>
+          <div class="step-row-desc">O consulente digita o e-mail novamente. Os dois campos precisam coincidir para avançar.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle">10</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Resumo e envio</div>
+          <div class="step-row-desc">O sistema verifica se há suspensão ativa. Se houver, exibe modal de bloqueio. Se não, registra o agendamento com status <strong>Pendente</strong>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">3 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 4 — REGRAS                                             -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-dark">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128221;</div>
+      <div>
+        <div class="slide-header-label">Para o Consulente</div>
+        <h2>Regras Importantes</h2>
+      </div>
+      <div class="slide-num">4</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:16px;">Essas regras são exibidas ao consulente antes do preenchimento e devem ser seguidas rigorosamente.</p>
+
+    <div class="rule-list">
+      <div class="rule-item">
+        <div class="rule-dot">1</div>
+        <span>Todos os atendimentos dependem de <strong>confirmação enviada pela equipe em até 1 dia</strong> via e-mail ou WhatsApp. O agendamento só está garantido após essa confirmação.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">2</div>
+        <span>Agendamentos feitos <strong>antes das 7h da manhã</strong> nos dias disponíveis são automaticamente excluídos pelo sistema.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">3</div>
+        <span><strong>Cancelamentos</strong> devem ser solicitados por e-mail até as <strong>12h do dia da gira</strong>. Faltas sem justificativa geram suspensão de 2 semanas.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">4</div>
+        <span><strong>Menores de idade</strong> não podem ser atendidos por <strong>Psicografia</strong> e <strong>Baralho</strong>. O sistema bloqueia automaticamente essas opções.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">5</div>
+        <span><strong>Vidência</strong> com Mãe Pequena Núbia e <strong>Caboclo Estrela</strong> com Mãe Meire acontecem apenas por encaminhamento após Acolhimento Espiritual.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">6</div>
+        <span><strong>Sala de Tratamento</strong> exige roupa branca em duas peças. Não são permitidas saias, vestidos, tops, roupas justas ou transparentes.</span>
+      </div>
+      <div class="rule-item">
+        <div class="rule-dot">7</div>
+        <span>Se a 1ª opção estiver sem vagas, o consulente poderá ser direcionado à <strong>2ª opção</strong> informada no formulário.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">4 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 5 — PAINEL DO OPERADOR                                 -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-purple">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#9881;&#65039;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>Painel de Agendamentos</h2>
+      </div>
+      <div class="slide-num">5</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="section-label">Cards de resumo (topo da tela)</div>
+    <div class="cols cols-3" style="margin-bottom:16px;gap:10px;">
+      <div style="background:#ede9fe;border-radius:9px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--purple);">N</div>
+        <div style="font-size:11px;font-weight:700;color:#5b21b6;text-transform:uppercase;letter-spacing:0.05em;">Total</div>
+      </div>
+      <div style="background:var(--amber-light);border-radius:9px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--amber);">N</div>
+        <div style="font-size:11px;font-weight:700;color:var(--amber-dark);text-transform:uppercase;letter-spacing:0.05em;">Pendentes</div>
+      </div>
+      <div style="background:var(--green-light);border-radius:9px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--green);">N</div>
+        <div style="font-size:11px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:0.05em;">Confirmados</div>
+      </div>
+    </div>
+
+    <div class="section-label">Filtros disponíveis</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <span style="background:#f3f4f6;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">&#128269; Busca por nome / e-mail / telefone</span>
+      <span style="background:var(--amber-light);border:1px solid #fcd34d;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--amber-dark);">Pendentes</span>
+      <span style="background:var(--green-light);border:1px solid #6ee7b7;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--green-dark);">Confirmados</span>
+      <span style="background:var(--red-light);border:1px solid #fca5a5;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--red-dark);">Cancelados</span>
+    </div>
+
+    <div class="section-label">Botões de ação por agendamento</div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="background:var(--green-light);color:var(--green-dark);padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;">&#10003; Confirmar</span>
+      <span style="background:var(--amber-light);color:var(--amber-dark);padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;">&#10005; Cancelar</span>
+      <span style="background:var(--red-light);color:var(--red-dark);padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;">&#128465; Excluir</span>
+    </div>
+
+    <div class="section-label">Ações da barra superior</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <span style="background:#ede9fe;color:#5b21b6;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;">&#128424; Lista de Chamada</span>
+      <span style="background:#dbeafe;color:#1e40af;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;">&#128202; Exportar Excel</span>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:14px;">
+      <span class="alert-icon">&#128276;</span>
+      <span>O botão <strong>Confirmar</strong> só aparece para agendamentos <em>Pendentes</em>. O botão <strong>Cancelar</strong> só aparece para agendamentos que ainda não foram cancelados.</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">5 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 6 — CONFIRMAR AGENDAMENTO                              -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-green">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#9989;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>Confirmar um Agendamento</h2>
+      </div>
+      <div class="slide-num">6</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="step-rows" style="gap:8px;">
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">1</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Localizar o agendamento</div>
+          <div class="step-row-desc">Use o filtro <strong>"Pendentes"</strong> ou a busca por nome/e-mail para encontrar o agendamento.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">2</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Clicar em "Confirmar" (ícone verde)</div>
+          <div class="step-row-desc">Se o consulente preencheu <strong>apenas a 1ª opção</strong>: confirmação automática. Se preencheu <strong>1ª e 2ª opção</strong>: abre modal perguntando qual opção o assistido aceitou.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">3</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Selecionar a opção e confirmar no modal</div>
+          <div class="step-row-desc">O sistema registra automaticamente: status → <strong>Confirmado</strong>, data/hora da confirmação, nome do operador e opção escolhida.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">4</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Modal de e-mail de confirmação</div>
+          <div class="step-row-desc">Após confirmar, o sistema pergunta se deseja enviar o e-mail de confirmação ao consulente. Veja o slide seguinte.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section-label">Cancelar vs. Excluir</div>
+    <div class="cols cols-2" style="gap:10px;">
+      <div class="card card-amber">
+        <div class="card-title" style="color:var(--amber-dark);">&#10005; Cancelar</div>
+        <div class="card-text">Muda o status para <em>Cancelado</em> mas mantém o registro histórico. Use para desistências comunicadas.</div>
+      </div>
+      <div class="card card-red">
+        <div class="card-title" style="color:var(--red-dark);">&#128465; Excluir</div>
+        <div class="card-text"><strong>Ação irreversível.</strong> Remove o registro permanentemente. Use apenas em casos de erro de cadastro.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">6 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 7 — E-MAIL DE CONFIRMAÇÃO                              -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-purple">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128140;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>E-mail de Confirmação</h2>
+      </div>
+      <div class="slide-num">7</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:16px;">Após confirmar o agendamento, o sistema pergunta automaticamente se deseja enviar o e-mail ao consulente.</p>
+
+    <div style="display:flex;gap:10px;margin-bottom:18px;">
+      <span style="background:#ede9fe;color:#5b21b6;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;">&#128140; Enviar E-mail</span>
+      <span style="background:#f3f4f6;color:#374151;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;">Não enviar</span>
+    </div>
+
+    <div class="section-label">Conteúdo do e-mail enviado ao consulente</div>
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+      <div style="background:var(--purple);padding:14px 18px;color:white;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.3);">
+          <div>
+            <div style="font-size:13px;font-weight:700;">Centro Espírita Santa Clara de Assis</div>
+            <div style="font-size:11px;opacity:0.75;">Confirmação de Agendamento</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 18px;background:white;">
+        <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
+          <p style="margin-bottom:8px;">Olá, <strong>[Nome do consulente]</strong>,</p>
+          <p style="margin-bottom:10px;">Seu agendamento foi confirmado para <strong>[Tipo de atendimento]</strong> na próxima gira.</p>
+          <div style="background:#f8f9ff;border-left:3px solid var(--purple);border-radius:0 6px 6px 0;padding:10px 14px;font-size:12px;margin-bottom:10px;">
+            <div><strong>Tipo:</strong> [Atendimento confirmado]</div>
+            <div><strong>Nome:</strong> [Nome completo]</div>
+            <div><strong>Telefone:</strong> [Telefone]</div>
+          </div>
+          <div style="background:#fffbeb;border-left:3px solid var(--amber);border-radius:0 6px 6px 0;padding:8px 12px;font-size:11.5px;color:var(--amber-dark);">
+            <strong>Atenção:</strong> Cancelamentos até 12h do dia da gira. Faltas sem justificativa resultam em suspensão de 2 semanas.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">&#128276;</span>
+      <span>O e-mail é enviado de <strong>agendamento@mail.cesca.digital</strong>. O consulente não deve responder a esse endereço.</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">7 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 8 — LISTA DE CHAMADA                                   -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-dark">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128424;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>Lista de Chamada</h2>
+      </div>
+      <div class="slide-num">8</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="step-rows" style="gap:8px;margin-bottom:16px;">
+      <div class="step-row">
+        <div class="step-circle" style="background:#312e81;">1</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Acessar a aba Agendamentos</div>
+          <div class="step-row-desc">No painel administrativo, clique na aba <strong>Agendamentos</strong>.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:#312e81;">2</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Clicar em "Lista de Chamada"</div>
+          <div class="step-row-desc">Botão roxo na barra superior. Abre uma nova janela do navegador com a lista formatada para impressão.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:#312e81;">3</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Imprimir — Ctrl + P</div>
+          <div class="step-row-desc">Selecione a impressora e confirme. A lista está otimizada para impressão A4 em preto e branco.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Prévia da Lista de Chamada</div>
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="background:var(--purple);color:white;padding:12px 16px;text-align:center;">
+        <div style="font-size:14px;font-weight:700;">Centro Espírita Santa Clara de Assis</div>
+        <div style="font-size:11px;opacity:0.8;margin-top:2px;">Lista de Chamada — Agendamentos Confirmados</div>
+        <div style="font-size:10px;opacity:0.65;margin-top:3px;">Gerada em: 21/02/2026 às 10:30</div>
+      </div>
+      <div style="padding:10px 16px;background:white;border-bottom:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px;">Psicografia (2 pessoas)</div>
+        <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px dotted #eee;font-size:12px;"><span style="font-weight:700;color:var(--gray);width:20px;">1</span><span style="flex:1;">Ana Clara Ferreira</span><span style="color:var(--gray);">(27) 99900-0001</span></div>
+        <div style="display:flex;gap:10px;padding:4px 0;font-size:12px;"><span style="font-weight:700;color:var(--gray);width:20px;">2</span><span style="flex:1;">Carlos Eduardo Lima</span><span style="color:var(--gray);">(27) 99900-0002</span></div>
+      </div>
+      <div style="padding:10px 16px;background:white;">
+        <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px;">Acolhimento Espiritual (1 pessoa)</div>
+        <div style="display:flex;gap:10px;padding:4px 0;font-size:12px;"><span style="font-weight:700;color:var(--gray);width:20px;">1</span><span style="flex:1;">Maria Júlia Santos</span><span style="color:var(--gray);">(27) 99900-0003</span></div>
+      </div>
+      <div style="padding:8px 16px;background:var(--gray-light);text-align:right;font-size:12px;font-weight:700;border-top:1px solid var(--border);">Total geral: 3 pessoas confirmadas</div>
+    </div>
+
+    <div class="alert alert-warning" style="margin-top:12px;">
+      <span class="alert-icon">&#9888;</span>
+      <span>A lista reflete os agendamentos confirmados <strong>no momento da impressão</strong>. Se houver confirmações posteriores, gere uma nova lista.</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">8 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 9 — CONFIRMAÇÃO DE PRESENÇA                            -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-green">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#128101;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>Confirmação de Presença</h2>
+      </div>
+      <div class="slide-num">9</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px;">Registre após cada gira quais consulentes compareceram ou faltaram. Acesse: <strong>admin.cesca.digital → Lista de Confirmação</strong></p>
+
+    <div class="cols cols-2" style="margin-bottom:14px;gap:12px;">
+      <div class="card card-purple">
+        <div class="card-title" style="color:#5b21b6;">Painel Esquerdo — Giras</div>
+        <div class="card-text">Lista de datas com agendamentos confirmados. Exibe total confirmados e pendentes de registro. Datas futuras recebem etiqueta "Futura".</div>
+      </div>
+      <div class="card card-gray">
+        <div class="card-title">Painel Direito — Consulentes</div>
+        <div class="card-text">Tabela com todos os confirmados para a data selecionada, com status de presença e botões de ação.</div>
+      </div>
+    </div>
+
+    <div class="section-label">Como registrar</div>
+    <div class="step-rows" style="gap:8px;margin-bottom:14px;">
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">1</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Selecionar a data da gira no painel esquerdo</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">2</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Para cada consulente, clicar em "Presente" ou "Ausente"</div>
+          <div class="step-row-desc">
+            <span style="background:var(--green-light);color:var(--green-dark);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;margin-right:6px;">&#10003; Presente</span>
+            <span style="background:var(--red-light);color:var(--red-dark);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">&#10007; Ausente</span>
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-circle" style="background:linear-gradient(135deg,#059669,#10b981);">3</div>
+        <div class="step-row-content">
+          <div class="step-row-title">Para corrigir: clicar em "Resetar"</div>
+          <div class="step-row-desc">Limpa o registro após confirmação. O sistema solicita confirmação antes de resetar.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Cores das linhas</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <span class="badge badge-green">Fundo verde — Compareceu</span>
+      <span class="badge badge-red">Fundo vermelho — Não compareceu</span>
+      <span class="badge badge-gray">Fundo branco — Pendente</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">9 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 10 — SUSPENSÃO AUTOMÁTICA                              -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-red">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#9208;&#65039;</div>
+      <div>
+        <div class="slide-header-label">Sistema Automático</div>
+        <h2>Suspensão por Falta</h2>
+      </div>
+      <div class="slide-num">10</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="alert alert-danger" style="margin-bottom:18px;">
+      <span class="alert-icon">&#9888;</span>
+      <span>Ao marcar um consulente como <strong>"Não compareceu"</strong>, o sistema cria <em>automaticamente</em> uma suspensão de <strong>14 dias</strong> vinculada ao e-mail e telefone daquele consulente.</span>
+    </div>
+
+    <div class="cols cols-2" style="gap:12px;margin-bottom:16px;">
+      <div class="card card-red">
+        <span class="card-icon">&#128683;</span>
+        <div class="card-title" style="color:var(--red-dark);">O que o consulente vê</div>
+        <div class="card-text">Ao tentar agendar durante a suspensão, o sistema exibe um modal informando o motivo e a data de encerramento. O agendamento não é registrado.</div>
+      </div>
+      <div class="card card-green">
+        <span class="card-icon">&#128993;</span>
+        <div class="card-title" style="color:var(--green-dark);">Após a suspensão</div>
+        <div class="card-text">O sistema libera automaticamente o agendamento após o prazo. Não é necessária nenhuma ação do operador.</div>
+      </div>
+    </div>
+
+    <div class="section-label">Detalhes da suspensão</div>
+    <table class="stbl" style="margin-bottom:14px;">
+      <thead>
+        <tr><th>Campo</th><th>Valor</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Motivo registrado</td><td>Falta não justificada</td></tr>
+        <tr><td>Duração</td><td>14 dias a partir do lançamento</td></tr>
+        <tr><td>Identificação</td><td>Por e-mail e/ou telefone</td></tr>
+        <tr><td>Gerada por</td><td>Automaticamente ao marcar "Não compareceu"</td></tr>
+      </tbody>
+    </table>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">&#9888;</span>
+      <span>A suspensão <strong>não pode ser removida</strong> pelo portal do consulente. Para remover uma suspensão indevida, solicite a um administrador do sistema.</span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">10 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 11 — CONFIGURAÇÕES E STATUS                            -->
+<!-- ============================================================ -->
+<div class="slide">
+  <div class="slide-header grad-dark">
+    <div class="slide-header-inner">
+      <div class="slide-header-icon">&#9881;&#65039;</div>
+      <div>
+        <div class="slide-header-label">Para o Operador</div>
+        <h2>Configurações &amp; Status</h2>
+      </div>
+      <div class="slide-num">11</div>
+    </div>
+  </div>
+
+  <div class="slide-body">
+    <div class="section-label">Configurações — admin.cesca.digital &rarr; Menu &rarr; Configurações</div>
+
+    <div class="toggle-row">
+      <div class="toggle-pill toggle-on"></div>
+      <div class="toggle-info">
+        <div class="toggle-title">Status dos Agendamentos</div>
+        <div class="toggle-desc"><strong>Ativado:</strong> formulário funciona normalmente. <strong>Desativado:</strong> portal exibe mensagem de suspensão temporária e nenhum agendamento é aceito.</div>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-pill toggle-off"></div>
+      <div class="toggle-info">
+        <div class="toggle-title">Restrição de Dias (padrão: restrito)</div>
+        <div class="toggle-desc"><strong>Restrito:</strong> agendamentos apenas às quartas-feiras e sábados. <strong>Liberado:</strong> aceito em qualquer dia da semana.</div>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-pill toggle-off"></div>
+      <div class="toggle-info">
+        <div class="toggle-title">Restrição de Horário (padrão: restrito)</div>
+        <div class="toggle-desc"><strong>Restrito:</strong> agendamentos aceitos apenas a partir das 7h. <strong>Liberado:</strong> qualquer horário do dia.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section-label">Tabela de Status</div>
+    <table class="stbl">
+      <thead>
+        <tr><th>Status</th><th>Cor</th><th>Significado</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-yellow">Pendente</span></td><td>Amarelo</td><td>Aguardando análise do operador</td></tr>
+        <tr><td><span class="badge badge-green">Confirmado</span></td><td>Verde</td><td>Confirmado pelo operador</td></tr>
+        <tr><td><span class="badge badge-red">Cancelado</span></td><td>Vermelho</td><td>Cancelado — registro histórico mantido</td></tr>
+        <tr><td><span class="badge badge-green">Compareceu</span></td><td>Verde</td><td>Presença registrada</td></tr>
+        <tr><td><span class="badge badge-red">Não compareceu</span></td><td>Vermelho</td><td>Falta → suspensão automática de 14 dias</td></tr>
+        <tr><td><span class="badge badge-gray">Pendente (presença)</span></td><td>Cinza</td><td>Presença ainda não registrada</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="slide-footer">
+    <div class="slide-footer-brand">
+      <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA">
+      Centro Espírita Santa Clara de Assis — Manual de Agendamentos
+    </div>
+    <div class="slide-footer-page">11 / 12</div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 12 — CONTRACAPA                                        -->
+<!-- ============================================================ -->
+<div class="slide grad-purple slide-back">
+  <div class="cover-deco" style="width:280px;height:280px;top:-100px;left:-80px;"></div>
+  <div class="cover-deco" style="width:180px;height:180px;bottom:-60px;right:-50px;"></div>
+
+  <img src="https://agendamento.cesca.digital/logo-cesca.jpeg" alt="CESCA"
+    style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.35);box-shadow:0 6px 24px rgba(0,0,0,0.2);margin-bottom:20px;position:relative;z-index:1;">
+
+  <div style="color:white;position:relative;z-index:1;text-align:center;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.7;margin-bottom:8px;">Centro Espírita Santa Clara de Assis</div>
+    <div style="font-size:26px;font-weight:900;margin-bottom:6px;">Manual de Agendamentos</div>
+    <div style="font-size:13px;opacity:0.8;margin-bottom:32px;">Gestão de agendamentos e confirmação de presença nas giras</div>
+
+    <div style="display:flex;gap:24px;justify-content:center;margin-bottom:32px;">
+      <div style="text-align:center;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;margin-bottom:4px;">Versão</div>
+        <div style="font-size:14px;font-weight:700;">2.0</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.2);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;margin-bottom:4px;">Data</div>
+        <div style="font-size:14px;font-weight:700;">Fevereiro 2026</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.2);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;margin-bottom:4px;">Uso</div>
+        <div style="font-size:14px;font-weight:700;">Interno</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:14px;padding:20px 32px;display:inline-block;">
+      <div style="font-size:11px;opacity:0.65;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em;">Endereços do Sistema</div>
+      <div style="display:flex;gap:32px;justify-content:center;">
+        <div>
+          <div style="font-size:9px;opacity:0.6;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Consulente</div>
+          <div style="font-size:13px;font-weight:700;">agendamento.cesca.digital</div>
+        </div>
+        <div style="width:1px;background:rgba(255,255,255,0.2);"></div>
+        <div>
+          <div style="font-size:9px;opacity:0.6;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Operador</div>
+          <div style="font-size:13px;font-weight:700;">admin.cesca.digital</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -12,12 +12,6 @@ RUN npm install --silent
 # Copy source code
 COPY . .
 
-# Set environment variables for build
-ARG REACT_APP_SUPABASE_URL
-ARG REACT_APP_SUPABASE_ANON_KEY
-ENV REACT_APP_SUPABASE_URL=$REACT_APP_SUPABASE_URL
-ENV REACT_APP_SUPABASE_ANON_KEY=$REACT_APP_SUPABASE_ANON_KEY
-
 # Build the app
 RUN npm run build
 

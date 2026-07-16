@@ -4,7 +4,6 @@ import {
   Card,
   Button,
   Input,
-  DatePicker,
   Space,
   Typography,
   Modal,
@@ -21,11 +20,10 @@ import {
   PlusOutlined,
   DeleteOutlined,
   SearchOutlined,
-  CloseCircleOutlined,
 } from '@ant-design/icons';
 // import dayjs from 'dayjs'; // Não utilizado
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
