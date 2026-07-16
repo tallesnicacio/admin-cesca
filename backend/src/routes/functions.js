@@ -452,8 +452,8 @@ router.post('/manage-appointments', authMiddleware, async (req, res) => {
       )).rows;
       await client.query(
         `UPDATE suspensoes
-         SET ativo = false, desativada_at = NOW(), desativada_por = $2
-         WHERE agendamento_id = ANY($1::uuid[]) AND ativo = true`,
+         SET ativo = false, ativa = false, desativada_at = NOW(), desativada_por = $2
+         WHERE agendamento_id = ANY($1::uuid[]) AND (ativo = true OR ativa = true)`,
         [appointmentIds, actor]
       );
     }
