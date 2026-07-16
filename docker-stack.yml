@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   admin-cesca:
-    image: admin-cesca:2026.07.16-safe-appointments.3
+    image: admin-cesca:2026.07.16-safe-appointments.4
     deploy:
       mode: replicated
       replicas: 1

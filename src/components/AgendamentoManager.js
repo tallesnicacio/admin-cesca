@@ -419,15 +419,20 @@ function AgendamentoManager({ userProfile }) {
   };
 
   const printCallList = () => {
-    // Filtrar apenas confirmados
-    if (filterGira === 'all') {
-      message.warning('Selecione uma gira antes de gerar a lista de chamada.');
+    const giraLista = filterGira === 'all' ? girasDisponiveis[0] : filterGira;
+
+    if (!giraLista) {
+      message.warning('Nenhuma gira com agendamentos confirmados disponível.');
       return;
     }
+
+    // Quando o usuário ainda não escolheu, usa e exibe a gira mais recente.
+    if (filterGira === 'all') setFilterGira(giraLista);
+
     const confirmados = (agendamentos || []).filter(a =>
       a?.status === 'Confirmado' &&
       !a.arquivado_at &&
-      getChaveGira(a) === filterGira
+      getChaveGira(a) === giraLista
     );
 
     if (confirmados.length === 0) {
@@ -521,7 +526,7 @@ function AgendamentoManager({ userProfile }) {
       </head>
       <body>
         <h1>Centro Espírita Santa Clara de Assis</h1>
-        <div class="date">Lista de Chamada - ${new Date(`${filterGira}T12:00:00`).toLocaleDateString('pt-BR', {
+        <div class="date">Lista de Chamada - ${new Date(`${giraLista}T12:00:00`).toLocaleDateString('pt-BR', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
@@ -837,7 +842,7 @@ function AgendamentoManager({ userProfile }) {
             size={isMobile ? 'middle' : 'large'}
             style={{ width: isMobile ? '100%' : 210 }}
           >
-            <Option value="all">Selecione a gira</Option>
+            <Option value="all">Gira mais recente (automática)</Option>
             {girasDisponiveis.map(data => (
               <Option key={data} value={data}>
                 {new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR')}
