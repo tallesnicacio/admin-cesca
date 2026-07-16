@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   admin-cesca:
-    image: admin-cesca:2026.07.16-safe-appointments.2
+    image: admin-cesca:2026.07.16-safe-appointments.3
     deploy:
       mode: replicated
       replicas: 1
@@ -55,7 +55,7 @@ services:
         max-file: "3"
 
   admin-cesca-api:
-    image: admin-cesca-api:2026.07.16-safe-appointments.2
+    image: admin-cesca-api:2026.07.16-safe-appointments.3
     environment:
       - DATABASE_URL=postgresql://admin_cesca_user:AdminCesca2024!Secure@dsaas-postgres:5432/admin_cesca
       - JWT_SECRET=c5439c0743b3847ec0890120bf232023a64bc9a1798c681c116997a8be1d3574b9514b4d51dcff17c8eacfe366a1f10d
