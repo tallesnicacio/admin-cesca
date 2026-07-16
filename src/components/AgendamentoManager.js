@@ -4,7 +4,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import logger from '../utils/logger';
 import * as XLSX from 'xlsx';
 import ConfirmacaoEmailModal from './ConfirmacaoEmailModal';
-import { getDataGira } from '../utils/giraUtils';
+import { getChaveGira } from '../utils/giraUtils';
 import {
   Table,
   Button,
@@ -127,7 +127,7 @@ function AgendamentoManager({ userProfile }) {
     }
 
     if (filterGira !== 'all') {
-      filtered = filtered.filter(ag => getDataGira(ag)?.toISOString().slice(0, 10) === filterGira);
+      filtered = filtered.filter(ag => getChaveGira(ag) === filterGira);
     }
 
     setFilteredAgendamentos(filtered);
@@ -427,7 +427,7 @@ function AgendamentoManager({ userProfile }) {
     const confirmados = (agendamentos || []).filter(a =>
       a?.status === 'Confirmado' &&
       !a.arquivado_at &&
-      getDataGira(a)?.toISOString().slice(0, 10) === filterGira
+      getChaveGira(a) === filterGira
     );
 
     if (confirmados.length === 0) {
@@ -589,7 +589,7 @@ function AgendamentoManager({ userProfile }) {
   const girasDisponiveis = [...new Set(
     agendamentos
       .filter(ag => ag.status === 'Confirmado' && !ag.arquivado_at)
-      .map(ag => getDataGira(ag)?.toISOString().slice(0, 10))
+      .map(getChaveGira)
       .filter(Boolean)
   )].sort().reverse();
 

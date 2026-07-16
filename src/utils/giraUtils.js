@@ -40,14 +40,30 @@ export function getProximaGira(dataReferencia = new Date()) {
 export function getDataGiraDoAgendamento(dataConfirmacao) {
   if (!dataConfirmacao) return null
   const data = new Date(dataConfirmacao)
+  if (Number.isNaN(data.getTime())) return null
   return getProximaGira(data)
 }
 
 export function getDataGira(agendamento) {
   if (agendamento?.gira_data) {
-    return new Date(`${agendamento.gira_data}T12:00:00`)
+    // PostgreSQL DATE pode chegar como YYYY-MM-DD ou ISO completo, conforme o driver.
+    const valor = String(agendamento.gira_data)
+    const data = /^\d{4}-\d{2}-\d{2}$/.test(valor)
+      ? new Date(`${valor}T12:00:00`)
+      : new Date(valor)
+    return Number.isNaN(data.getTime()) ? null : data
   }
   return getDataGiraDoAgendamento(agendamento?.data_confirmacao)
+}
+
+export function getChaveGira(agendamento) {
+  if (agendamento?.gira_data) {
+    const match = String(agendamento.gira_data).match(/^(\d{4}-\d{2}-\d{2})/)
+    if (match) return match[1]
+  }
+
+  const data = getDataGira(agendamento)
+  return data && !Number.isNaN(data.getTime()) ? data.toISOString().slice(0, 10) : null
 }
 
 /**
@@ -87,9 +103,10 @@ export function agruparPorGira(agendamentos) {
     .filter(ag => ag.status === 'Confirmado')
     .forEach(agendamento => {
       const dataGira = getDataGira(agendamento)
-      if (!dataGira) return
+      if (!dataGira || Number.isNaN(dataGira.getTime())) return
 
-      const chave = dataGira.toISOString().split('T')[0] // YYYY-MM-DD
+      const chave = getChaveGira(agendamento)
+      if (!chave) return
 
       if (!grupos[chave]) {
         grupos[chave] = {
