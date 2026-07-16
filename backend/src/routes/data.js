@@ -191,6 +191,20 @@ const MAX_BATCH_ROWS = { agendamentos: 1, default: 100 };
 // Tamanho máximo de valores string por coluna
 const MAX_STRING_LENGTH = 10000;
 
+function normalizePersonName(value = '') {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function getNextGiraDate() {
+  const localDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+  const date = new Date(`${localDate}T12:00:00Z`);
+  const offsets = { 0: 1, 1: 4, 2: 3, 3: 2, 4: 1, 5: 3, 6: 2 };
+  date.setUTCDate(date.getUTCDate() + offsets[date.getUTCDay()]);
+  return date.toISOString().slice(0, 10);
+}
+
 function validateBody(table, rows) {
   const maxRows = MAX_BATCH_ROWS[table] ?? MAX_BATCH_ROWS.default;
   if (rows.length > maxRows) {
@@ -220,6 +234,27 @@ router.post('/:table', conditionalAuth, async (req, res) => {
 
   const validationError = validateBody(table, rows);
   if (validationError) return res.status(400).json({ error: validationError });
+
+  // O formulário público recebe a gira calculada pelo servidor e não aceita
+  // duplicidade do mesmo nome normalizado na mesma gira.
+  if (table === 'agendamentos') {
+    const giraData = getNextGiraDate();
+    const normalizedName = normalizePersonName(rows[0].nome_completo);
+    if (!normalizedName) return res.status(400).json({ error: 'Nome completo obrigatório' });
+
+    rows[0].gira_data = giraData;
+    const existing = await pool.query(
+      `SELECT nome_completo FROM agendamentos
+       WHERE gira_data = $1 AND arquivado_at IS NULL AND status NOT ILIKE 'Cancelado%'`,
+      [giraData]
+    );
+    if (existing.rows.some(row => normalizePersonName(row.nome_completo) === normalizedName)) {
+      return res.status(409).json({
+        data: null,
+        error: { message: 'Já existe um agendamento ativo com este nome para a próxima gira.' }
+      });
+    }
+  }
 
   const cols = Object.keys(rows[0]).filter(k => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k));
   if (!cols.length) return res.status(400).json({ error: 'Nenhuma coluna válida' });
