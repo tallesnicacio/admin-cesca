@@ -24,7 +24,7 @@ docs/
 .env.production.local
 
 # Build output
-build
+# build  # Comentado para permitir COPY build/ no Dockerfile.production
 dist
 .next
 out

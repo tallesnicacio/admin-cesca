@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Space, List, Spin, Result } from 'antd';
 import { LockOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import './SetPassword.css';
 
 const { Title, Text } = Typography;
@@ -18,6 +18,7 @@ function SetPassword() {
   const [password, setPassword] = useState('');
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Validação de senha
   const passwordRequirements = [
@@ -32,13 +33,30 @@ function SetPassword() {
 
   useEffect(() => {
     checkEmailConfirmation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkEmailConfirmation = async () => {
     try {
       setCheckingToken(true);
 
-      // Verificar se há uma sessão ativa (após confirmação de email)
+      // Se há token de convite na URL, validar com o backend
+      const tokenFromUrl = searchParams.get('token');
+      if (tokenFromUrl) {
+        const { data, error: verifyError } = await supabase.auth.verifyInvite(tokenFromUrl);
+        if (verifyError || !data?.session) {
+          setError('Link inválido ou expirado. Por favor, solicite um novo link de confirmação.');
+          setIsValidToken(false);
+          setCheckingToken(false);
+          return;
+        }
+        setIsValidToken(true);
+        setUserName(data.session.user.user_metadata?.name || data.session.user.email);
+        setCheckingToken(false);
+        return;
+      }
+
+      // Verificar se há uma sessão ativa (usuário já autenticado)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
@@ -48,7 +66,6 @@ function SetPassword() {
         return;
       }
 
-      // Usuário confirmou o email com sucesso
       setIsValidToken(true);
       setUserName(session.user.user_metadata?.name || session.user.email);
       setCheckingToken(false);
@@ -68,7 +85,7 @@ function SetPassword() {
       setLoading(true);
 
       // Atualizar senha do usuário
-      const { data, error: updateError } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabase.auth.updateUser({
         password: values.password
       });
 

@@ -345,9 +345,6 @@ function AgendamentoManager({ userProfile }) {
       'Nome': ag.nome_completo,
       'Email': ag.email,
       'Telefone': ag.telefone,
-      'Menor de Idade': ag.menor_de_idade ? 'Sim' : 'Não',
-      'Nome do Responsável': ag.menor_de_idade ? (ag.nome_responsavel || '-') : '-',
-      'CPF do Responsável': ag.menor_de_idade ? (ag.cpf_responsavel || '-') : '-',
       'Primeira Opção': ag.primeira_opcao,
       'Segunda Opção': ag.segunda_opcao || '-',
       'Opção Escolhida': ag.opcao_escolhida === 'primeira' ? '1ª Opção' : ag.opcao_escolhida === 'segunda' ? '2ª Opção' : '-',
@@ -457,7 +454,7 @@ function AgendamentoManager({ userProfile }) {
         </style>
       </head>
       <body>
-        <h1>Centro Espírita Santa Clara de Assis</h1>
+        <h1>🌟 Centro Espírita Santa Clara de Assis 🌟</h1>
         <div class="date">Lista de Chamada - ${new Date().toLocaleDateString('pt-BR', {
           weekday: 'long',
           year: 'numeric',
@@ -479,18 +476,7 @@ function AgendamentoManager({ userProfile }) {
               ${porTipo[tipo].map((ag, index) => `
                 <tr>
                   <td>${index + 1}</td>
-                  <td>
-                    <strong>${ag.nome_completo}</strong>
-                    ${ag.menor_de_idade ? `
-                      <div style="margin-top:4px;font-size:0.85em;color:#b45309;">
-                        <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold;">MENOR DE IDADE</span>
-                        <div style="margin-top:2px;color:#444;">
-                          Responsável: <strong>${ag.nome_responsavel || '-'}</strong>
-                          ${ag.cpf_responsavel ? ` &middot; CPF: ${ag.cpf_responsavel}` : ''}
-                        </div>
-                      </div>
-                    ` : ''}
-                  </td>
+                  <td><strong>${ag.nome_completo}</strong></td>
                   <td>${ag.telefone}</td>
                 </tr>
               `).join('')}
@@ -550,16 +536,7 @@ function AgendamentoManager({ userProfile }) {
       title: 'Nome',
       dataIndex: 'nome_completo',
       key: 'nome_completo',
-      render: (nome, record) => (
-        <Space size={6}>
-          <Text strong>{nome}</Text>
-          {record.menor_de_idade && (
-            <Tag color="gold" style={{ marginLeft: 0, fontWeight: 600 }}>
-              Menor
-            </Tag>
-          )}
-        </Space>
-      ),
+      render: (nome) => <Text strong>{nome}</Text>,
       sorter: (a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''),
     },
     {
@@ -791,29 +768,6 @@ function AgendamentoManager({ userProfile }) {
           loading={modalLoading}
           scroll={{ x: isMobile ? 800 : undefined }}
           size={isMobile ? 'small' : 'default'}
-          expandable={{
-            rowExpandable: (record) => !!record.menor_de_idade,
-            expandedRowRender: (record) => (
-              <div style={{
-                background: '#fffbeb',
-                border: '1px solid #fde68a',
-                borderRadius: 8,
-                padding: 16
-              }}>
-                <Text strong style={{ color: '#92400e', display: 'block', marginBottom: 8 }}>
-                  Dados do responsável (menor de idade)
-                </Text>
-                <Space direction="vertical" size={4}>
-                  <Text>
-                    <strong>Nome:</strong> {record.nome_responsavel || <Text type="secondary">— não informado</Text>}
-                  </Text>
-                  <Text>
-                    <strong>CPF:</strong> {record.cpf_responsavel || <Text type="secondary">— não informado</Text>}
-                  </Text>
-                </Space>
-              </div>
-            ),
-          }}
         />
       </div>
 
