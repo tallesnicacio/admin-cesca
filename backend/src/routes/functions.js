@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const pool = require('../db');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,6 +25,17 @@ function generateCancelToken(id, email) {
     .update(`${id}:${email.toLowerCase()}`)
     .digest('hex')
     .slice(0, 32);
+}
+
+async function sendCancellationEmail(agendamento) {
+  return resend.emails.send({
+    from: 'Centro Espírita Santa Clara de Assis <agendamento@mail.cesca.digital>',
+    to: agendamento.email,
+    subject: 'Cancelamento de Agendamento - CESCA',
+    html: `<p>Olá, <strong>${htmlEscape(agendamento.nome_completo)}</strong>.</p>
+      <p>Seu agendamento no Centro Espírita Santa Clara de Assis foi cancelado pela equipe.</p>
+      <p>Se precisar de esclarecimentos, entre em contato conosco.</p>`,
+  });
 }
 
 // Página HTML de confirmação de cancelamento
@@ -381,6 +393,95 @@ router.post('/verificar-suspensao', async (req, res) => {
   } catch (err) {
     console.error('Erro ao verificar suspensão:', err);
     res.status(500).json({ data: null, error: { message: err.message } });
+  }
+});
+
+// POST /api/functions/manage-appointments
+// Operações administrativas reversíveis. Não executa exclusão física.
+router.post('/manage-appointments', authMiddleware, async (req, res) => {
+  const { action, ids, actor = 'Admin', sendEmail = false } = req.body || {};
+  const appointmentIds = Array.isArray(ids) ? [...new Set(ids)].slice(0, 200) : [];
+
+  if (!['cancel', 'restore', 'archive', 'reset_presence'].includes(action)) {
+    return res.status(400).json({ data: null, error: { message: 'Ação inválida' } });
+  }
+  if (!appointmentIds.length) {
+    return res.status(400).json({ data: null, error: { message: 'Selecione ao menos um agendamento' } });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query(
+      `SELECT id, nome_completo, email, status FROM agendamentos WHERE id = ANY($1::uuid[]) FOR UPDATE`,
+      [appointmentIds]
+    );
+    if (current.rows.length !== appointmentIds.length) throw new Error('Um ou mais agendamentos não foram encontrados');
+
+    let rows;
+    if (action === 'cancel') {
+      rows = (await client.query(
+        `UPDATE agendamentos
+         SET status_anterior = CASE WHEN status NOT ILIKE 'Cancelado%' THEN status ELSE status_anterior END,
+             status = 'Cancelado', cancelado_at = NOW(), cancelado_por = $2
+         WHERE id = ANY($1::uuid[]) AND status NOT ILIKE 'Cancelado%'
+         RETURNING *`,
+        [appointmentIds, actor]
+      )).rows;
+    } else if (action === 'restore') {
+      rows = (await client.query(
+        `UPDATE agendamentos
+         SET status = COALESCE(status_anterior, 'Pendente de confirmação'),
+             status_anterior = NULL, cancelado_at = NULL, cancelado_por = NULL
+         WHERE id = ANY($1::uuid[]) AND status ILIKE 'Cancelado%'
+         RETURNING *`,
+        [appointmentIds]
+      )).rows;
+    } else if (action === 'archive') {
+      rows = (await client.query(
+        `UPDATE agendamentos SET arquivado_at = COALESCE(arquivado_at, NOW())
+         WHERE id = ANY($1::uuid[]) RETURNING *`,
+        [appointmentIds]
+      )).rows;
+    } else {
+      rows = (await client.query(
+        `UPDATE agendamentos
+         SET compareceu = NULL, data_registro_presenca = NULL, responsavel_registro = NULL
+         WHERE id = ANY($1::uuid[]) RETURNING *`,
+        [appointmentIds]
+      )).rows;
+      await client.query(
+        `UPDATE suspensoes
+         SET ativo = false, desativada_at = NOW(), desativada_por = $2
+         WHERE agendamento_id = ANY($1::uuid[]) AND ativo = true`,
+        [appointmentIds, actor]
+      );
+    }
+    await client.query('COMMIT');
+
+    const emailFailures = [];
+    if (action === 'cancel' && sendEmail) {
+      for (const appointment of rows) {
+        try {
+          const result = await sendCancellationEmail(appointment);
+          if (result.error) throw result.error;
+          await pool.query(
+            'UPDATE agendamentos SET email_cancelamento_enviado_at = NOW() WHERE id = $1',
+            [appointment.id]
+          );
+        } catch (emailError) {
+          emailFailures.push({ id: appointment.id, message: emailError.message });
+        }
+      }
+    }
+
+    res.json({ data: { updated: rows.length, emailFailures }, error: null });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro na gestão de agendamentos:', err.message);
+    res.status(500).json({ data: null, error: { message: err.message } });
+  } finally {
+    client.release();
   }
 });
 

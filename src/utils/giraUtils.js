@@ -43,6 +43,13 @@ export function getDataGiraDoAgendamento(dataConfirmacao) {
   return getProximaGira(data)
 }
 
+export function getDataGira(agendamento) {
+  if (agendamento?.gira_data) {
+    return new Date(`${agendamento.gira_data}T12:00:00`)
+  }
+  return getDataGiraDoAgendamento(agendamento?.data_confirmacao)
+}
+
 /**
  * Formata uma data no padrão brasileiro com dia da semana
  * @param {Date} data - Data a ser formatada
@@ -79,7 +86,7 @@ export function agruparPorGira(agendamentos) {
   agendamentos
     .filter(ag => ag.status === 'Confirmado')
     .forEach(agendamento => {
-      const dataGira = getDataGiraDoAgendamento(agendamento.data_confirmacao)
+      const dataGira = getDataGira(agendamento)
       if (!dataGira) return
 
       const chave = dataGira.toISOString().split('T')[0] // YYYY-MM-DD

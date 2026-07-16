@@ -103,15 +103,13 @@ function ListaConfirmacaoPresenca({ userProfile }) {
     try {
       setSalvando(true)
 
-      const { error } = await supabase
-        .from('agendamentos')
-        .update({
-          compareceu: null,
-          data_registro_presenca: null,
-          responsavel_registro: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', agendamentoId)
+      const { error } = await supabase.functions.invoke('manage-appointments', {
+        body: {
+          action: 'reset_presence',
+          ids: [agendamentoId],
+          actor: userProfile?.name || 'Admin'
+        }
+      })
 
       if (error) throw error
 
@@ -129,7 +127,7 @@ function ListaConfirmacaoPresenca({ userProfile }) {
         )
       )
 
-      mostrarMensagem('sucesso', 'Registro de presença resetado')
+      mostrarMensagem('sucesso', 'Presença resetada e eventual suspensão desativada')
     } catch (error) {
       console.error('Erro ao resetar presença:', error)
       mostrarMensagem('erro', 'Erro ao resetar presença')
