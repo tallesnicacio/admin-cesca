@@ -255,7 +255,7 @@ function Dashboard({ session }) {
         placement="left"
         open={drawerVisible}
         onClose={() => setDrawerVisible(false)}
-        width={SIDEBAR_WIDTH}
+        width={`min(${SIDEBAR_WIDTH}px, 88vw)`}
         styles={{
           body:    { padding: 0, background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)' },
           header:  { display: 'none' },
