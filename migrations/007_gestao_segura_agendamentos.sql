@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_suspensoes_agendamento_id ON suspensoes(agendamen
 UPDATE suspensoes
 SET data_fim = COALESCE(data_fim, data_fim_ts::date),
     ativo = COALESCE(ativo, ativa, true)
-WHERE data_fim IS NULL OR ativo IS NULL;
+WHERE (data_fim IS NULL AND data_fim_ts IS NOT NULL) OR ativo IS NULL;
 
 CREATE OR REPLACE FUNCTION criar_suspensao_por_falta()
 RETURNS TRIGGER AS $$
