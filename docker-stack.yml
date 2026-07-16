@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   admin-cesca:
-    image: admin-cesca:latest
+    image: admin-cesca:2026.07.16-safe-appointments.1
     deploy:
       mode: replicated
       replicas: 1
@@ -55,7 +55,7 @@ services:
         max-file: "3"
 
   admin-cesca-api:
-    image: admin-cesca-api:latest
+    image: admin-cesca-api:2026.07.16-safe-appointments.1
     environment:
       - DATABASE_URL=***REMOVED_FROM_GIT_HISTORY***
       - JWT_SECRET=***REMOVED_FROM_GIT_HISTORY***
