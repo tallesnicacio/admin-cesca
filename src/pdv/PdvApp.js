@@ -243,9 +243,15 @@ function PdvHome() {
             <Form.Item name="valorInicial" label="Troco inicial" rules={[{ required: true }]}>
               <InputNumber min={0} precision={2} decimalSeparator="," prefix="R$" style={{ width: '100%' }} size="large" />
             </Form.Item>
-            <Button type="primary" htmlType="submit" loading={saving} block size="large">Abrir caixa</Button>
+            <Button type="primary" htmlType="submit" loading={saving} disabled={!context.produtos.length} block size="large">Abrir caixa</Button>
           </Form>
-          {!context.produtos.length && <Alert type="warning" showIcon message="Um administrador precisa cadastrar e ativar produtos com preço." />}
+          {!context.produtos.length && <Alert
+            type="warning"
+            showIcon
+            message="Produtos ainda não configurados"
+            description="Defina os preços e ative Salgado e Refrigerante no Admin CESCA antes de abrir o caixa."
+            action={context.usuario.role === 'admin' ? <Button href="https://admin.cesca.digital" target="_blank">Ir ao Admin</Button> : null}
+          />}
         </Card>
       )}
 
