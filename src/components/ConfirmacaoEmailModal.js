@@ -14,15 +14,17 @@ function ConfirmacaoEmailModal({
   visible,
   onClose,
   agendamento,
-  opcaoEscolhida
+  opcaoEscolhida,
+  mode = 'send'
 }) {
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const isResend = mode === 'resend';
 
   const handleSendEmail = async () => {
     try {
       setSending(true);
-      logger.log('📧 Enviando email de confirmação...', {
+      logger.log(isResend ? '📧 Reenviando email de confirmação...' : '📧 Enviando email de confirmação...', {
         agendamentoId: agendamento?.id,
         opcaoEscolhida
       });
@@ -31,7 +33,7 @@ function ConfirmacaoEmailModal({
 
       if (result.success) {
         setEmailSent(true);
-        message.success('Email enviado com sucesso!');
+        message.success(isResend ? 'E-mail reenviado com sucesso!' : 'E-mail enviado com sucesso!');
         logger.log('✅ Email enviado:', result);
 
         // Fecha o modal após 2 segundos
@@ -69,7 +71,7 @@ function ConfirmacaoEmailModal({
       title={
         <Space>
           <MailOutlined style={{ color: '#667eea', fontSize: 20 }} />
-          <span>Enviar Email de Confirmação</span>
+          <span>{isResend ? 'Reenviar E-mail de Confirmação' : 'Enviar E-mail de Confirmação'}</span>
         </Space>
       }
       open={visible}
@@ -82,7 +84,7 @@ function ConfirmacaoEmailModal({
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
           <CheckCircleOutlined style={{ fontSize: 64, color: '#10b981', marginBottom: 20 }} />
           <Text style={{ display: 'block', fontSize: 18, fontWeight: 500 }}>
-            Email enviado com sucesso!
+            {isResend ? 'E-mail reenviado com sucesso!' : 'E-mail enviado com sucesso!'}
           </Text>
         </div>
       ) : (
@@ -90,7 +92,9 @@ function ConfirmacaoEmailModal({
           <div style={{ marginBottom: 20 }}>
             <ExclamationCircleOutlined style={{ color: '#667eea', fontSize: 20, marginRight: 8 }} />
             <Text style={{ fontSize: 16 }}>
-              Deseja enviar um email de confirmação para o consulente?
+              {isResend
+                ? 'Deseja reenviar o e-mail de confirmação para o consulente?'
+                : 'Deseja enviar um e-mail de confirmação para o consulente?'}
             </Text>
           </div>
 
@@ -153,7 +157,7 @@ function ConfirmacaoEmailModal({
               onClick={handleSendEmail}
               loading={sending}
             >
-              {sending ? 'Enviando...' : 'Enviar Email'}
+              {sending ? 'Enviando...' : isResend ? 'Reenviar E-mail' : 'Enviar E-mail'}
             </Button>
           </Space>
         </div>

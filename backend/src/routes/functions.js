@@ -131,7 +131,8 @@ function renderCancelResultPage(success, message) {
 }
 
 // POST /api/functions/send-confirmation-email
-router.post('/send-confirmation-email', async (req, res) => {
+// Disponível somente para usuários autenticados e agendamentos confirmados.
+router.post('/send-confirmation-email', authMiddleware, async (req, res) => {
   const { agendamentoId, opcaoEscolhida = 'primeira' } = req.body || {};
 
   if (!agendamentoId) return res.status(400).json({ error: 'agendamentoId obrigatório' });
@@ -147,7 +148,33 @@ router.post('/send-confirmation-email', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Agendamento não encontrado' });
 
     const ag = rows[0];
-    const opcaoRaw = opcaoEscolhida === 'segunda' ? ag.segunda_opcao : ag.primeira_opcao;
+    if (ag.status !== 'Confirmado') {
+      return res.status(409).json({
+        data: null,
+        error: { message: 'O e-mail de confirmação só pode ser enviado para agendamentos confirmados.' }
+      });
+    }
+
+    const opcaoConfirmada = ag.opcao_escolhida === 'segunda'
+      ? 'segunda'
+      : ag.opcao_escolhida === 'primeira'
+        ? 'primeira'
+        : opcaoEscolhida;
+
+    if (!['primeira', 'segunda'].includes(opcaoConfirmada)) {
+      return res.status(400).json({
+        data: null,
+        error: { message: 'Opção de atendimento inválida.' }
+      });
+    }
+
+    const opcaoRaw = opcaoConfirmada === 'segunda' ? ag.segunda_opcao : ag.primeira_opcao;
+    if (!opcaoRaw || opcaoRaw === 'Nenhum') {
+      return res.status(409).json({
+        data: null,
+        error: { message: 'O agendamento confirmado não possui uma opção de atendimento válida.' }
+      });
+    }
     const opcao = htmlEscape(opcaoRaw);
 
     const cancelToken = generateCancelToken(ag.id, ag.email);
