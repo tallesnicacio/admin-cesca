@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -27,6 +27,10 @@ const ALLOWED_TABLES = new Set([
   'quizzes', 'questions', 'quiz_results',
 ]);
 
+function isIdentifier(value) {
+  return typeof value === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value);
+}
+
 function parseFilters(query) {
   const filters = [];
   const values = [];
@@ -35,43 +39,53 @@ function parseFilters(query) {
   for (const [key, val] of Object.entries(query)) {
     if (key.startsWith('eq.')) {
       const col = key.slice(3);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" = $${idx++}`);
       values.push(val);
     } else if (key.startsWith('neq.')) {
       const col = key.slice(4);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" != $${idx++}`);
       values.push(val);
     } else if (key.startsWith('gte.')) {
       const col = key.slice(4);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" >= $${idx++}`);
       values.push(val);
     } else if (key.startsWith('lte.')) {
       const col = key.slice(4);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" <= $${idx++}`);
       values.push(val);
     } else if (key.startsWith('gt.')) {
       const col = key.slice(3);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" > $${idx++}`);
       values.push(val);
     } else if (key.startsWith('lt.')) {
       const col = key.slice(3);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" < $${idx++}`);
       values.push(val);
     } else if (key.startsWith('like.')) {
       const col = key.slice(5);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" LIKE $${idx++}`);
       values.push(val);
     } else if (key.startsWith('ilike.')) {
       const col = key.slice(6);
+      if (!isIdentifier(col)) continue;
       filters.push(`"${col}" ILIKE $${idx++}`);
       values.push(val);
     } else if (key.startsWith('is.')) {
       const col = key.slice(3);
+      if (!isIdentifier(col)) continue;
       if (val === 'null') filters.push(`"${col}" IS NULL`);
       else if (val === 'true') filters.push(`"${col}" IS TRUE`);
       else if (val === 'false') filters.push(`"${col}" IS FALSE`);
     } else if (key.startsWith('in.')) {
       const col = key.slice(3);
+      if (!isIdentifier(col)) continue;
       const inVals = val.replace(/^\(|\)$/g, '').split(',').map(v => v.trim());
       const placeholders = inVals.map(() => `$${idx++}`).join(',');
       filters.push(`"${col}" IN (${placeholders})`);
@@ -148,7 +162,10 @@ function conditionalAuth(req, res, next) {
   const isPublicInsert = method === 'POST' && PUBLIC_INSERT_TABLES.has(table);
 
   if (isPublicRead || isPublicInsert) return next();
-  return authMiddleware(req, res, next);
+  return authMiddleware(req, res, (err) => {
+    if (err) return next(err);
+    return requireAdmin(req, res, next);
+  });
 }
 
 // GET /api/data/:table
@@ -181,7 +198,7 @@ router.get('/:table', conditionalAuth, async (req, res) => {
     res.json({ data: rows, error: null });
   } catch (err) {
     console.error(`Erro GET ${table}:`, err.message);
-    res.status(500).json({ data: null, error: { message: err.message } });
+    res.status(500).json({ data: null, error: { message: 'Erro ao consultar dados' } });
   }
 });
 
@@ -270,7 +287,11 @@ router.post('/:table', conditionalAuth, async (req, res) => {
 
       let sql;
       if (upsert === 'true' && onConflict) {
-        const conflictCols = onConflict.split(',').map(c => `"${c.trim()}"`).join(', ');
+        const requestedConflictCols = onConflict.split(',').map(c => c.trim());
+        if (!requestedConflictCols.length || requestedConflictCols.some(c => !isIdentifier(c) || !cols.includes(c))) {
+          throw Object.assign(new Error('Colunas de conflito inválidas'), { statusCode: 400 });
+        }
+        const conflictCols = requestedConflictCols.map(c => `"${c}"`).join(', ');
         const updateSql = cols.map((c, i) => `"${c}" = EXCLUDED."${c}"`).join(', ');
         sql = `INSERT INTO "${table}" (${colSql}) VALUES (${placeholders})
                ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSql}
@@ -290,14 +311,14 @@ router.post('/:table', conditionalAuth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(`Erro POST ${table}:`, err.message);
-    res.status(500).json({ data: null, error: { message: err.message } });
+    res.status(err.statusCode || 500).json({ data: null, error: { message: err.statusCode ? err.message : 'Erro ao gravar dados' } });
   } finally {
     client.release();
   }
 });
 
 // PATCH /api/data/:table — UPDATE
-router.patch('/:table', authMiddleware, async (req, res) => {
+router.patch('/:table', authMiddleware, requireAdmin, async (req, res) => {
   const { table } = req.params;
   if (!ALLOWED_TABLES.has(table)) return res.status(403).json({ error: 'Tabela não permitida' });
 
@@ -316,6 +337,7 @@ router.patch('/:table', authMiddleware, async (req, res) => {
   const fullSetSql = hasUpdatedAt ? setSql : `${setSql}, "updated_at" = NOW()`;
 
   const { filters, values: filterVals } = parseFilters(filterQuery);
+  if (!filters.length) return res.status(400).json({ error: 'Filtros obrigatórios para UPDATE' });
   const adjustedFilters = filters.map(f => f.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + setVals.length}`));
   const whereClause = adjustedFilters.length ? `WHERE ${adjustedFilters.join(' AND ')}` : '';
 
@@ -326,12 +348,12 @@ router.patch('/:table', authMiddleware, async (req, res) => {
     res.json({ data: rows, error: null });
   } catch (err) {
     console.error(`Erro PATCH ${table}:`, err.message);
-    res.status(500).json({ data: null, error: { message: err.message } });
+    res.status(500).json({ data: null, error: { message: 'Erro ao atualizar dados' } });
   }
 });
 
 // DELETE /api/data/:table
-router.delete('/:table', authMiddleware, async (req, res) => {
+router.delete('/:table', authMiddleware, requireAdmin, async (req, res) => {
   const { table } = req.params;
   if (!ALLOWED_TABLES.has(table)) return res.status(403).json({ error: 'Tabela não permitida' });
 
@@ -346,7 +368,7 @@ router.delete('/:table', authMiddleware, async (req, res) => {
     res.json({ data: rows, error: null });
   } catch (err) {
     console.error(`Erro DELETE ${table}:`, err.message);
-    res.status(500).json({ data: null, error: { message: err.message } });
+    res.status(500).json({ data: null, error: { message: 'Erro ao excluir dados' } });
   }
 });
 

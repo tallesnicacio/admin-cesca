@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const pool = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireAdmin } = require('../middleware/auth');
+const { readSecret } = require('../config');
 
 function htmlEscape(str) {
   if (str == null) return '';
@@ -17,13 +18,13 @@ function htmlEscape(str) {
 }
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = readSecret('JWT_SECRET');
 const JWT_EXPIRES = '7d';
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(readSecret('RESEND_API_KEY', { required: false }));
 
 function makeSession(user) {
   const token = jwt.sign(
-    { sub: user.id, email: user.email, name: user.name, is_admin: user.is_admin },
+    { sub: user.id, email: user.email, name: user.name, role: user.role, is_admin: user.is_admin },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES }
   );
@@ -33,6 +34,7 @@ function makeSession(user) {
       id: user.id,
       email: user.email,
       user_metadata: { name: user.name },
+      app_metadata: { role: user.role, is_admin: Boolean(user.is_admin) },
     },
   };
 }
@@ -44,13 +46,14 @@ router.post('/login', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT u.id, u.email, u.password_hash, p.name, p.is_admin, p.is_active
+      `SELECT u.id, u.email, u.password_hash, p.id AS profile_id, p.name, p.role, p.is_admin, p.is_active
        FROM users u LEFT JOIN profiles p ON p.id = u.id
        WHERE u.email = $1`,
       [email.toLowerCase()]
     );
     const user = rows[0];
     if (!user || !user.password_hash) return res.status(401).json({ error: 'Credenciais inválidas' });
+    if (!user.profile_id) return res.status(403).json({ error: 'Conta sem perfil de acesso' });
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -102,13 +105,14 @@ router.get('/user', authMiddleware, (req, res) => {
 });
 
 // POST /api/auth/signup — cria usuário e envia convite por email
-router.post('/signup', authMiddleware, async (req, res) => {
+router.post('/signup', authMiddleware, requireAdmin, async (req, res) => {
   const { email, password, options } = req.body;
   const name = options?.data?.name || '';
   const role = options?.data?.role || 'user';
   const emailRedirectTo = options?.emailRedirectTo || `${process.env.APP_URL}/set-password`;
 
   if (!email) return res.status(400).json({ error: 'Email obrigatório' });
+  if (!['admin', 'vendedor', 'user'].includes(role)) return res.status(400).json({ error: 'Perfil inválido' });
 
   try {
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -196,7 +200,7 @@ router.post('/verify-invite', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT u.id, u.email, p.name, p.is_admin
+      `SELECT u.id, u.email, p.name, p.role, p.is_admin
        FROM users u LEFT JOIN profiles p ON p.id = u.id
        WHERE u.invite_token = $1 AND u.invite_expires_at > NOW()`,
       [token]

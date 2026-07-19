@@ -248,14 +248,15 @@ function UserManager() {
       key: 'role',
       render: (role) => (
         <Tag
-          color={role === 'admin' ? 'purple' : 'blue'}
+          color={role === 'admin' ? 'purple' : role === 'vendedor' ? 'green' : 'blue'}
           style={{ borderRadius: 6, fontWeight: 500 }}
         >
-          {role === 'admin' ? 'Administrador' : 'Usuário'}
+          {role === 'admin' ? 'Administrador' : role === 'vendedor' ? 'Vendedor' : 'Usuário'}
         </Tag>
       ),
       filters: [
         { text: 'Administrador', value: 'admin' },
+        { text: 'Vendedor', value: 'vendedor' },
         { text: 'Usuário', value: 'user' },
       ],
       onFilter: (value, record) => record.role === value,
@@ -496,6 +497,7 @@ function UserManager() {
           >
             <Select size="large" suffixIcon={<SafetyOutlined style={{ color: '#999' }} />}>
               <Select.Option value="user">Usuário</Select.Option>
+              <Select.Option value="vendedor">Vendedor da lanchonete</Select.Option>
               <Select.Option value="admin">Administrador</Select.Option>
             </Select>
           </Form.Item>

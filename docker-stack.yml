@@ -1,8 +1,86 @@
 version: '3.8'
 
+x-frontend-deploy: &frontend-deploy
+  mode: replicated
+  replicas: 1
+  update_config:
+    parallelism: 1
+    delay: 10s
+    failure_action: rollback
+    monitor: 30s
+    order: start-first
+  rollback_config:
+    parallelism: 1
+    delay: 10s
+    failure_action: pause
+    monitor: 30s
+    order: stop-first
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+  placement:
+    constraints:
+      - node.role == manager
+  resources:
+    limits: { cpus: '0.5', memory: 512M }
+    reservations: { cpus: '0.1', memory: 128M }
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: 10m, max-file: '3' }
+
 services:
   admin-cesca:
-    image: admin-cesca:2026.07.16-safe-appointments.4
+    image: admin-cesca:${IMAGE_TAG:-latest}
+    deploy:
+      <<: *frontend-deploy
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.admin-cesca.rule=Host(`admin.cesca.digital`)
+        - traefik.http.routers.admin-cesca.entrypoints=websecure
+        - traefik.http.routers.admin-cesca.tls=true
+        - traefik.http.routers.admin-cesca.tls.certresolver=letsencrypt
+        - traefik.http.services.admin-cesca.loadbalancer.server.port=80
+        - traefik.http.routers.admin-cesca-http.rule=Host(`admin.cesca.digital`)
+        - traefik.http.routers.admin-cesca-http.entrypoints=web
+        - traefik.http.routers.admin-cesca-http.middlewares=cesca-redirect-to-https
+        - traefik.http.middlewares.cesca-redirect-to-https.redirectscheme.scheme=https
+    networks: [network_public]
+    logging: *default-logging
+
+  pdv-cesca:
+    image: admin-cesca:${IMAGE_TAG:-latest}
+    deploy:
+      <<: *frontend-deploy
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.pdv-cesca.rule=Host(`pdv.cesca.digital`)
+        - traefik.http.routers.pdv-cesca.entrypoints=websecure
+        - traefik.http.routers.pdv-cesca.tls=true
+        - traefik.http.routers.pdv-cesca.tls.certresolver=letsencrypt
+        - traefik.http.services.pdv-cesca.loadbalancer.server.port=80
+        - traefik.http.routers.pdv-cesca-http.rule=Host(`pdv.cesca.digital`)
+        - traefik.http.routers.pdv-cesca-http.entrypoints=web
+        - traefik.http.routers.pdv-cesca-http.middlewares=cesca-redirect-to-https
+    networks: [network_public]
+    logging: *default-logging
+
+  admin-cesca-api:
+    image: admin-cesca-api:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      RESEND_API_KEY_FILE: /run/secrets/resend_api_key
+      APP_URL: https://admin.cesca.digital
+      CORS_ORIGINS: https://agendamento.cesca.digital,https://admin.cesca.digital,https://pdv.cesca.digital
+      PORT: '3010'
+      NODE_ENV: production
+    secrets:
+      - database_url
+      - jwt_secret
+      - resend_api_key
     deploy:
       mode: replicated
       replicas: 1
@@ -18,75 +96,29 @@ services:
         failure_action: pause
         monitor: 30s
         order: stop-first
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
-      placement:
-        constraints:
-          - node.role == manager
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.admin-cesca.rule=Host(`admin.cesca.digital`)"
-        - "traefik.http.routers.admin-cesca.entrypoints=websecure"
-        - "traefik.http.routers.admin-cesca.tls=true"
-        - "traefik.http.routers.admin-cesca.tls.certresolver=letsencrypt"
-        - "traefik.http.services.admin-cesca.loadbalancer.server.port=80"
-        - "traefik.http.routers.admin-cesca-http.rule=Host(`admin.cesca.digital`)"
-        - "traefik.http.routers.admin-cesca-http.entrypoints=web"
-        - "traefik.http.routers.admin-cesca-http.middlewares=redirect-to-https"
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - network_public
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  admin-cesca-api:
-    image: admin-cesca-api:2026.07.16-safe-appointments.3
-    environment:
-      - DATABASE_URL=***REMOVED_FROM_GIT_HISTORY***
-      - JWT_SECRET=***REMOVED_FROM_GIT_HISTORY***
-      - RESEND_API_KEY=***REMOVED_FROM_GIT_HISTORY***
-      - APP_URL=https://admin.cesca.digital
-      - PORT=3010
-    deploy:
-      mode: replicated
-      replicas: 1
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
       placement:
-        constraints:
-          - node.role == manager
+        constraints: [node.role == manager]
       resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-    networks:
-      - network_public
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+        limits: { cpus: '0.5', memory: 256M }
+        reservations: { cpus: '0.1', memory: 128M }
+    networks: [network_public]
+    logging: *default-logging
 
 networks:
   network_public:
     external: true
+
+secrets:
+  database_url:
+    external: true
+    name: cesca_database_url_${CESCA_SECRET_VERSION:-v1}
+  jwt_secret:
+    external: true
+    name: cesca_jwt_secret_${CESCA_SECRET_VERSION:-v1}
+  resend_api_key:
+    external: true
+    name: cesca_resend_api_key_${CESCA_SECRET_VERSION:-v1}
