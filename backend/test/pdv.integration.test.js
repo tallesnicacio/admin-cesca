@@ -38,6 +38,12 @@ test.before(async () => {
 test.after(async () => { await pool.end(); });
 
 test('fluxo diário completo, RBAC, idempotência e fechamento', async () => {
+  const validSession = await request(app).get('/api/auth/session').set('Authorization', auth.seller);
+  assert.equal(validSession.status, 200);
+  assert.equal(validSession.body.data.session.user.app_metadata.role, 'vendedor');
+  const invalidSession = await request(app).get('/api/auth/session').set('Authorization', 'Bearer token-invalido');
+  assert.equal(invalidSession.status, 401);
+
   const sellerData = await request(app).get('/api/data/profiles').set('Authorization', auth.seller);
   assert.equal(sellerData.status, 403);
   const unsafePatch = await request(app).patch('/api/data/profiles').set('Authorization', auth.admin).send({ name: 'Todos' });
