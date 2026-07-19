@@ -34,7 +34,7 @@ function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-async function apiFetch(path, options = {}) {
+export async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -42,7 +42,9 @@ async function apiFetch(path, options = {}) {
     ...options.headers,
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  return res.json();
+  const payload = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }));
+  if (!res.ok && !payload.error) payload.error = `Erro HTTP ${res.status}`;
+  return payload;
 }
 
 // ============================================================

@@ -16,6 +16,7 @@ import {
   LockOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
 import './Dashboard.css';
@@ -34,6 +35,7 @@ const FinanceiroManager     = lazy(() => import('./financeiro/FinanceiroManager'
 const EscalasManager        = lazy(() => import('./escalas/EscalasManager'));
 const FormularioEditor      = lazy(() => import('./FormularioEditor'));
 const AlterarSenha          = lazy(() => import('./AlterarSenha'));
+const LanchoneteManager     = lazy(() => import('./lanchonete/LanchoneteManager'));
 
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -56,6 +58,7 @@ const MENU_ITEMS = [
   { key: 'presenca',          icon: <CheckSquareOutlined />, label: 'Presença' },
   { key: 'escalas',           icon: <CalendarOutlined />,    label: 'Escalas' },
   { key: 'financeiro',        icon: <DollarOutlined />,      label: 'Financeiro' },
+  { key: 'lanchonete',        icon: <ShopOutlined />,        label: 'Lanchonete' },
   { key: 'usuarios',          icon: <UserOutlined />,        label: 'Usuários' },
   { key: 'reports',           icon: <BarChartOutlined />,    label: 'Relatórios' },
 ];
@@ -304,6 +307,7 @@ function Dashboard({ session }) {
             {activeTab === 'presenca'          && renderPresencaContent()}
             {activeTab === 'escalas'           && <EscalasManager userProfile={userProfile} />}
             {activeTab === 'financeiro'        && <FinanceiroManager userProfile={userProfile} />}
+            {activeTab === 'lanchonete'        && <LanchoneteManager />}
             {activeTab === 'usuarios'          && <UserManager />}
             {activeTab === 'configuracoes'     && <Configuracoes />}
             {activeTab === 'alterar-senha'     && <AlterarSenha />}

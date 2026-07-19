@@ -7,6 +7,7 @@ const pool = require('./db');
 const authRoutes = require('./routes/auth');
 const dataRoutes = require('./routes/data');
 const functionsRoutes = require('./routes/functions');
+const pdvRoutes = require('./routes/pdv');
 
 const app = express();
 const PORT = process.env.PORT || 3010;
@@ -14,7 +15,7 @@ const PORT = process.env.PORT || 3010;
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-  : ['https://agendamento.cesca.digital', 'https://admin.cesca.digital'];
+  : ['https://agendamento.cesca.digital', 'https://admin.cesca.digital', 'https://pdv.cesca.digital'];
 
 if (!process.env.CORS_ORIGINS) {
   console.warn('[WARN] CORS_ORIGINS não configurado — usando domínios padrão do CESCA.');
@@ -36,7 +37,7 @@ app.use(cors({
 const rateLimitStore = new Map();
 
 // Limpa entradas expiradas a cada 5 minutos
-setInterval(() => {
+const rateLimitCleanup = setInterval(() => {
   const cutoff = Date.now() - 15 * 60 * 1000;
   for (const [key, timestamps] of rateLimitStore) {
     const filtered = timestamps.filter(t => t > cutoff);
@@ -44,6 +45,7 @@ setInterval(() => {
     else rateLimitStore.set(key, filtered);
   }
 }, 5 * 60 * 1000);
+rateLimitCleanup.unref();
 
 function createRateLimit(maxRequests, windowMs) {
   return (req, res, next) => {
@@ -83,6 +85,7 @@ app.get('/health', async (req, res) => {
 app.use('/api/auth', authRateLimit, authRoutes);
 app.use('/api/data', generalRateLimit, dataRoutes);
 app.use('/api/functions', generalRateLimit, functionsRoutes);
+app.use('/api/pdv', generalRateLimit, pdvRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
@@ -93,9 +96,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`admin-cesca-api rodando na porta ${PORT}`);
-  console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'configurado' : 'NÃO configurado'}`);
-  console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'configurado' : 'NÃO configurado'}`);
-  console.log(`RESEND_API_KEY: ${process.env.RESEND_API_KEY ? 'configurado' : 'NÃO configurado'}`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`admin-cesca-api rodando na porta ${PORT}`);
+    console.log(`DATABASE_URL: ${process.env.DATABASE_URL || process.env.DATABASE_URL_FILE ? 'configurado' : 'NÃO configurado'}`);
+    console.log(`JWT_SECRET: ${process.env.JWT_SECRET || process.env.JWT_SECRET_FILE ? 'configurado' : 'NÃO configurado'}`);
+    console.log(`RESEND_API_KEY: ${process.env.RESEND_API_KEY || process.env.RESEND_API_KEY_FILE ? 'configurado' : 'NÃO configurado'}`);
+  });
+}
+
+module.exports = app;

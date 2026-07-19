@@ -3,9 +3,11 @@ const crypto = require('crypto');
 const { Resend } = require('resend');
 const pool = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { readSecret } = require('../config');
 
 const router = express.Router();
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(readSecret('RESEND_API_KEY', { required: false }));
+const JWT_SECRET = readSecret('JWT_SECRET');
 
 // Escapa caracteres HTML para evitar XSS em templates de email
 function htmlEscape(str) {
@@ -21,7 +23,7 @@ function htmlEscape(str) {
 // Gera token HMAC-SHA256 para link de cancelamento seguro e stateless
 function generateCancelToken(id, email) {
   return crypto
-    .createHmac('sha256', process.env.JWT_SECRET || 'fallback-secret')
+    .createHmac('sha256', JWT_SECRET)
     .update(`${id}:${email.toLowerCase()}`)
     .digest('hex')
     .slice(0, 32);
