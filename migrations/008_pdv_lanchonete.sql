@@ -121,4 +121,19 @@ WHERE NOT EXISTS (
   SELECT 1 FROM pdv_produtos p WHERE lower(p.nome) = lower(seed.nome)
 );
 
+-- A aplicação usa um papel sem privilégios de proprietário. Em instalações de
+-- teste esse papel pode não existir, por isso a concessão é condicional.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_cesca_user') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON
+      pdv_produtos,
+      pdv_caixa_produtos,
+      pdv_vendas,
+      pdv_venda_itens,
+      pdv_fechamentos
+    TO admin_cesca_user;
+  END IF;
+END $$;
+
 COMMIT;
