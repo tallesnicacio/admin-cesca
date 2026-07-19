@@ -140,7 +140,7 @@ router.post('/signup', authMiddleware, requireAdmin, async (req, res) => {
       const inviteUrl = `${emailRedirectTo}?token=${inviteToken}`;
       try {
         await resend.emails.send({
-          from: 'Admin CESCA <noreply@cesca.digital>',
+          from: 'Admin CESCA <noreply@mail.cesca.digital>',
           to: email,
           subject: 'Bem-vindo ao Admin CESCA - Defina sua senha',
           html: `
