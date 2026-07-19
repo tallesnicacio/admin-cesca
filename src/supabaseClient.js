@@ -43,6 +43,9 @@ export async function apiFetch(path, options = {}) {
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const payload = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }));
+  if (res.status === 401 && token) {
+    setStoredSession(null);
+  }
   if (!res.ok && !payload.error) payload.error = `Erro HTTP ${res.status}`;
   return payload;
 }
@@ -191,7 +194,18 @@ const auth = {
       setStoredSession(null);
       return { data: { session: null }, error: null };
     }
-    return { data: { session }, error: null };
+    try {
+      const result = await apiFetch('/auth/session');
+      if (!result.data?.session) {
+        setStoredSession(null);
+        return { data: { session: null }, error: result.error || null };
+      }
+      setStoredSession(result.data.session);
+      return result;
+    } catch (error) {
+      setStoredSession(null);
+      return { data: { session: null }, error: { message: error.message } };
+    }
   },
 
   async getUser() {

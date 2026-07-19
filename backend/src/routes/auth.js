@@ -72,26 +72,22 @@ router.post('/logout', (req, res) => {
   res.json({ error: null });
 });
 
-// GET /api/auth/session  — valida JWT e retorna sessão
-router.get('/session', (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.json({ data: { session: null }, error: null });
-  }
-  try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET);
-    res.json({
-      data: {
-        session: {
-          access_token: authHeader.slice(7),
-          user: { id: payload.sub, email: payload.email, user_metadata: { name: payload.name } },
+// GET /api/auth/session — valida JWT e o perfil ativo no banco.
+router.get('/session', authMiddleware, (req, res) => {
+  res.json({
+    data: {
+      session: {
+        access_token: req.headers.authorization.slice(7),
+        user: {
+          id: req.user.sub,
+          email: req.user.email,
+          user_metadata: { name: req.user.name },
+          app_metadata: { role: req.user.role, is_admin: req.user.is_admin },
         },
       },
-      error: null,
-    });
-  } catch {
-    res.json({ data: { session: null }, error: null });
-  }
+    },
+    error: null,
+  });
 });
 
 // GET /api/auth/user
