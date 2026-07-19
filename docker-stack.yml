@@ -41,7 +41,7 @@ services:
         - traefik.http.routers.admin-cesca.rule=Host(`admin.cesca.digital`)
         - traefik.http.routers.admin-cesca.entrypoints=websecure
         - traefik.http.routers.admin-cesca.tls=true
-        - traefik.http.routers.admin-cesca.tls.certresolver=letsencrypt
+        - traefik.http.routers.admin-cesca.tls.certresolver=letsencryptresolver
         - traefik.http.services.admin-cesca.loadbalancer.server.port=80
         - traefik.http.routers.admin-cesca-http.rule=Host(`admin.cesca.digital`)
         - traefik.http.routers.admin-cesca-http.entrypoints=web
@@ -59,7 +59,7 @@ services:
         - traefik.http.routers.pdv-cesca.rule=Host(`pdv.cesca.digital`)
         - traefik.http.routers.pdv-cesca.entrypoints=websecure
         - traefik.http.routers.pdv-cesca.tls=true
-        - traefik.http.routers.pdv-cesca.tls.certresolver=letsencrypt
+        - traefik.http.routers.pdv-cesca.tls.certresolver=letsencryptresolver
         - traefik.http.services.pdv-cesca.loadbalancer.server.port=80
         - traefik.http.routers.pdv-cesca-http.rule=Host(`pdv.cesca.digital`)
         - traefik.http.routers.pdv-cesca-http.entrypoints=web
