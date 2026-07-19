@@ -32,6 +32,7 @@ import {
   InboxOutlined,
   DownloadOutlined,
   PrinterOutlined,
+  MailOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 
@@ -54,6 +55,7 @@ function AgendamentoManager({ userProfile }) {
   const [modalEmailVisible, setModalEmailVisible] = useState(false);
   const [agendamentoParaEmail, setAgendamentoParaEmail] = useState(null);
   const [opcaoEscolhidaEmail, setOpcaoEscolhidaEmail] = useState('primeira');
+  const [emailModalMode, setEmailModalMode] = useState('send');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [filterGira, setFilterGira] = useState('all');
 
@@ -171,6 +173,7 @@ function AgendamentoManager({ userProfile }) {
         // Após confirmar, mostrar modal de envio de email
         setAgendamentoParaEmail(agendamento);
         setOpcaoEscolhidaEmail('primeira');
+        setEmailModalMode('send');
 
         // Aguardar um pouco antes de mostrar o modal de email
         setTimeout(() => {
@@ -208,6 +211,7 @@ function AgendamentoManager({ userProfile }) {
       // Após confirmar, mostrar modal de envio de email
       setAgendamentoParaEmail(agendamentoSelecionado);
       setOpcaoEscolhidaEmail(opcaoSelecionada);
+      setEmailModalMode('send');
 
       setModalOpcaoVisible(false);
       setAgendamentoSelecionado(null);
@@ -302,6 +306,20 @@ function AgendamentoManager({ userProfile }) {
       logger.error('Erro completo:', error);
       message.error('Erro ao atualizar status: ' + error.message);
     }
+  };
+
+  const handleReenviarEmailConfirmacao = (agendamento) => {
+    if (agendamento?.status !== 'Confirmado') {
+      message.warning('O e-mail só pode ser reenviado para agendamentos confirmados.');
+      return;
+    }
+
+    setAgendamentoParaEmail(agendamento);
+    setOpcaoEscolhidaEmail(
+      agendamento.opcao_escolhida === 'segunda' ? 'segunda' : 'primeira'
+    );
+    setEmailModalMode('resend');
+    setModalEmailVisible(true);
   };
 
   const handleCancelarAgendamento = (agendamento) => {
@@ -695,7 +713,7 @@ function AgendamentoManager({ userProfile }) {
     {
       title: 'Ações',
       key: 'actions',
-      width: 150,
+      width: 190,
       render: (_, record) => (
         <Space size="small">
           {record.status === 'Pendente de confirmação' && (
@@ -705,6 +723,17 @@ function AgendamentoManager({ userProfile }) {
                 icon={<CheckOutlined />}
                 style={{ color: '#10b981' }}
                 onClick={() => handleConfirmarAgendamento(record)}
+              />
+            </Tooltip>
+          )}
+          {record.status === 'Confirmado' && (
+            <Tooltip title="Reenviar e-mail de confirmação">
+              <Button
+                type="text"
+                aria-label={`Reenviar e-mail de confirmação para ${record.nome_completo}`}
+                icon={<MailOutlined />}
+                style={{ color: '#667eea' }}
+                onClick={() => handleReenviarEmailConfirmacao(record)}
               />
             </Tooltip>
           )}
@@ -985,9 +1014,11 @@ function AgendamentoManager({ userProfile }) {
         onClose={() => {
           setModalEmailVisible(false);
           setAgendamentoParaEmail(null);
+          setEmailModalMode('send');
         }}
         agendamento={agendamentoParaEmail}
         opcaoEscolhida={opcaoEscolhidaEmail}
+        mode={emailModalMode}
       />
     </div>
   );
