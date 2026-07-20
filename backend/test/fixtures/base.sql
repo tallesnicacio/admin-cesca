@@ -52,3 +52,26 @@ CREATE TABLE movimentacoes_caixa (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Reproduz o gatilho legado existente em produção. Ele recalcula o valor
+-- esperado com todas as movimentações quando o caixa muda para fechado.
+CREATE OR REPLACE FUNCTION calcular_diferenca_caixa()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'fechado' AND OLD.status = 'aberto' THEN
+    SELECT NEW.valor_inicial +
+      COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE 0 END), 0) -
+      COALESCE(SUM(CASE WHEN tipo = 'saida' THEN valor ELSE 0 END), 0)
+    INTO NEW.valor_final_esperado
+    FROM movimentacoes_caixa
+    WHERE caixa_id = NEW.id;
+    NEW.diferenca := NEW.valor_final_real - NEW.valor_final_esperado;
+    NEW.hora_fechamento := NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_calcular_diferenca_caixa
+BEFORE UPDATE ON caixas
+FOR EACH ROW EXECUTE FUNCTION calcular_diferenca_caixa();
