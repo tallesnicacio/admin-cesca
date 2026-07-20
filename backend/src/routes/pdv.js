@@ -159,12 +159,22 @@ router.post('/caixas/:id/fechar', requirePdvAccess, async (req, res) => {
     if (caixa.status !== 'aberto') throw Object.assign(new Error('Este caixa já está fechado'), { statusCode: 409 });
     const esperado = await calculateExpectedCash(client, caixa.id, caixa.valor_inicial);
     const diferenca = valorContadoCentavos - esperado;
+    // O esquema legado possui um gatilho que recalcula o valor esperado com
+    // todas as formas de pagamento quando o status muda para fechado. Primeiro
+    // fechamos o caixa para preservar esse comportamento global; em seguida,
+    // ainda na mesma transação e com a linha bloqueada, persistimos o cálculo
+    // específico do PDV (somente dinheiro físico).
+    await client.query(
+      `UPDATE caixas SET status = 'fechado', valor_final_real = $1,
+              fechado_por = $2, hora_fechamento = NOW(), updated_at = NOW()
+        WHERE id = $3`,
+      [valorContadoCentavos / 100, req.user.sub, caixa.id]
+    );
     const { rows: updated } = await client.query(
-      `UPDATE caixas SET status = 'fechado', valor_final_esperado = $1,
-              valor_final_real = $2, diferenca = $3, fechado_por = $4,
-              hora_fechamento = NOW(), updated_at = NOW()
-        WHERE id = $5 RETURNING *`,
-      [esperado / 100, valorContadoCentavos / 100, diferenca / 100, req.user.sub, caixa.id]
+      `UPDATE caixas SET valor_final_esperado = $1, valor_final_real = $2,
+              diferenca = $3, updated_at = NOW()
+        WHERE id = $4 RETURNING *`,
+      [esperado / 100, valorContadoCentavos / 100, diferenca / 100, caixa.id]
     );
     await client.query(
       `INSERT INTO pdv_fechamentos
