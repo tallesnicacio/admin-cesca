@@ -16,19 +16,30 @@
 .pdv-product:active { transform: scale(.98); background: #f3f5ff; }
 .pdv-product span { font-size: 19px; font-weight: 650; }
 .pdv-product strong { font-size: 22px; color: #5266d6; }
+.pdv-product small { color: #667085; font-size: 13px; }
 .pdv-product b { position: absolute; right: 12px; top: 12px; min-width: 30px; height: 30px; display: grid; place-items: center; border-radius: 15px; background: #5266d6; color: #fff; }
+.pdv-product-sold-out { cursor: not-allowed; opacity: .58; box-shadow: none; }
+.pdv-product-sold-out strong { color: #8a94a3; }
 .pdv-cart { position: sticky; top: 80px; }
 .pdv-cart .ant-list-item > div:first-child { display: flex; flex-direction: column; }
 .pdv-cart small { color: #667085; }
+.pdv-donation-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pdv-donation { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 20px; }
-.pdv-donation .ant-input-number { width: 130px; }
+.pdv-donation .ant-input-number-group-wrapper { width: 190px; }
 .pdv-total { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 0; font-size: 18px; }
 .pdv-total strong { font-size: 30px; color: #3146bd; }
 .pdv-day-actions { position: fixed; left: 50%; bottom: 14px; z-index: 8; transform: translateX(-50%); display: flex; gap: 8px; padding: 9px; background: rgba(255,255,255,.95); border: 1px solid #dfe5ed; border-radius: 16px; box-shadow: 0 8px 35px rgba(18,38,63,.16); }
 .pdv-state-card { width: min(520px, calc(100% - 32px)); margin: 48px auto; }
 .pdv-state-card .ant-form { margin-top: 24px; }
 .pdv-state-card .ant-alert { margin-top: 18px; }
+.pdv-opening-stock { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
 .pdv-checkout-total { text-align: center; font-size: 42px !important; color: #3146bd !important; }
+.pdv-payment-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pdv-payment-actions .ant-btn { height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; white-space: normal; }
+.pdv-payment-actions .ant-btn strong { font-size: 20px; }
+.pdv-payment-actions .ant-btn small { font-size: 12px; opacity: .88; }
+.pdv-payment-dinheiro { background: #26734d; border-color: #26734d; }
+.pdv-payment-dinheiro:not(:disabled):hover { background: #1f6240 !important; border-color: #1f6240 !important; }
 .pdv-saving { display: block; margin: 18px auto 0; }
 .pdv-report .ant-statistic { padding: 14px; border: 1px solid #e8ebf0; border-radius: 12px; }
 .pdv-report .ant-alert { margin-top: 16px; }
@@ -39,6 +50,9 @@
   .pdv-product span { font-size: 17px; }
   .pdv-product strong { font-size: 19px; }
   .pdv-cart { position: static; }
+  .pdv-opening-stock { grid-template-columns: 1fr; }
+  .pdv-payment-actions { grid-template-columns: 1fr; }
+  .pdv-payment-actions .ant-btn { height: 72px; }
   .pdv-day-actions { width: calc(100% - 20px); justify-content: center; }
   .pdv-day-actions .ant-btn { flex: 1; padding-inline: 8px; }
 }
