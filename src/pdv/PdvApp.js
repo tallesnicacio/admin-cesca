@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert, Avatar, Button, Card, Col, Divider, Drawer, Empty, Form, Input,
-  InputNumber, List, Modal, Row, Segmented, Space, Spin, Statistic, Tag,
+  InputNumber, List, Modal, Row, Space, Spin, Statistic, Tag,
   Typography, message,
 } from 'antd';
 import {
@@ -10,6 +10,11 @@ import {
   PlusOutlined, PrinterOutlined, ReloadOutlined, ShoppingCartOutlined,
 } from '@ant-design/icons';
 import { apiFetch, supabase } from '../supabaseClient';
+import {
+  buildOpenCashPayload, buildSalePayload, reconcileCartWithStock, updateCartQuantity,
+} from './pdvLogic';
+import PaymentButtons from './PaymentButtons';
+import DonationSelector from './DonationSelector';
 import '../components/Login.css';
 import './PdvApp.css';
 
@@ -66,7 +71,8 @@ function DailyReport({ report }) {
       <Row gutter={[12, 12]}>
         {report.produtos.map(p => (
           <Col xs={12} sm={8} key={p.produto_id}>
-            <Statistic title={p.nome} value={p.quantidade} suffix="un." />
+            <Statistic title={`${p.nome} vendidos`} value={p.quantidade} suffix="un." />
+            {p.estoque_inicial != null && <Text type="secondary">Estoque: {p.estoque_inicial} inicial · {p.estoque_disponivel} restante</Text>}
           </Col>
         ))}
         <Col xs={12} sm={8}><Statistic title="Doações" value={money(report.resumo?.doacao_centavos)} /></Col>
@@ -99,13 +105,16 @@ function PdvHome() {
   const [sales, setSales] = useState([]);
   const [report, setReport] = useState(null);
   const [pendingRequestId, setPendingRequestId] = useState(null);
+  const saleInFlight = useRef(false);
   const [openForm] = Form.useForm();
   const [closeForm] = Form.useForm();
 
   const loadContext = useCallback(async () => {
     setLoading(true);
     try {
-      setContext(throwApi(await apiFetch('/pdv/contexto')));
+      const nextContext = throwApi(await apiFetch('/pdv/contexto'));
+      setContext(nextContext);
+      setCart(current => reconcileCartWithStock(current, nextContext?.produtos));
     } catch (err) {
       message.error(err.message);
     } finally {
@@ -122,18 +131,15 @@ function PdvHome() {
   const itemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const total = subtotal + donation;
 
-  const changeQty = (id, delta) => setCart(current => {
-    const next = Math.max(0, Math.min(999, (current[id] || 0) + delta));
-    const updated = { ...current };
-    if (next) updated[id] = next; else delete updated[id];
-    return updated;
-  });
+  const changeQty = (id, delta) => setCart(current => (
+    updateCartQuantity(current, productsById.get(id), delta)
+  ));
 
-  const openCash = async ({ valorInicial }) => {
+  const openCash = async (values) => {
     setSaving(true);
     try {
       throwApi(await apiFetch('/pdv/caixas/abrir', {
-        method: 'POST', body: JSON.stringify({ valorInicialCentavos: Math.round(Number(valorInicial || 0) * 100) }),
+        method: 'POST', body: JSON.stringify(buildOpenCashPayload(values, context.produtos)),
       }));
       message.success('Caixa aberto');
       await loadContext();
@@ -141,19 +147,15 @@ function PdvHome() {
   };
 
   const finishSale = async (formaPagamento) => {
-    if (!itemCount) return;
+    if (!itemCount || saleInFlight.current) return;
+    saleInFlight.current = true;
     setSaving(true);
     const requestId = pendingRequestId || crypto.randomUUID();
     setPendingRequestId(requestId);
     try {
       throwApi(await apiFetch('/pdv/vendas', {
         method: 'POST',
-        body: JSON.stringify({
-          requestId,
-          itens: Object.entries(cart).map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
-          doacaoCentavos: donation,
-          formaPagamento,
-        }),
+        body: JSON.stringify(buildSalePayload({ requestId, cart, donation, formaPagamento })),
       }));
       message.success('Venda finalizada');
       setCart({});
@@ -161,7 +163,13 @@ function PdvHome() {
       setPendingRequestId(null);
       setCheckoutOpen(false);
       await loadContext();
-    } catch (err) { message.error(err.message); } finally { setSaving(false); }
+    } catch (err) {
+      message.error(err.message);
+      await loadContext();
+    } finally {
+      saleInFlight.current = false;
+      setSaving(false);
+    }
   };
 
   const loadSales = async () => {
@@ -238,11 +246,25 @@ function PdvHome() {
       {!context.caixa && (
         <Card className="pdv-state-card">
           <Title level={3}>Abrir caixa de hoje</Title>
-          <Text>Informe o dinheiro disponível no início do atendimento.</Text>
+          <Text>Informe o troco e a quantidade disponível de cada produto no início do atendimento.</Text>
           <Form form={openForm} layout="vertical" onFinish={openCash} initialValues={{ valorInicial: 0 }}>
             <Form.Item name="valorInicial" label="Troco inicial" rules={[{ required: true }]}>
               <InputNumber min={0} precision={2} decimalSeparator="," prefix="R$" style={{ width: '100%' }} size="large" />
             </Form.Item>
+            <Divider orientation="left">Estoque do dia</Divider>
+            <div className="pdv-opening-stock">
+              {context.produtos.map(product => (
+                <Form.Item
+                  key={product.id}
+                  name={['estoques', product.id]}
+                  label={product.nome}
+                  initialValue={0}
+                  rules={[{ required: true, message: 'Informe a quantidade disponível' }]}
+                >
+                  <InputNumber min={0} max={1000000} precision={0} addonAfter="un." style={{ width: '100%' }} size="large" />
+                </Form.Item>
+              ))}
+            </div>
             <Button type="primary" htmlType="submit" loading={saving} disabled={!context.produtos.length} block size="large">Abrir caixa</Button>
           </Form>
           {!context.produtos.length && <Alert
@@ -273,8 +295,14 @@ function PdvHome() {
               <div className="pdv-section-title"><Title level={3}>Produtos</Title><Tag color="green">Caixa aberto</Tag></div>
               <div className="pdv-products">
                 {context.produtos.map(product => (
-                  <button className="pdv-product" key={product.id} onClick={() => changeQty(product.id, 1)}>
+                  <button
+                    className={`pdv-product ${product.estoque_disponivel != null && Number(product.estoque_disponivel) === 0 ? 'pdv-product-sold-out' : ''}`}
+                    key={product.id}
+                    onClick={() => changeQty(product.id, 1)}
+                    disabled={product.estoque_disponivel != null && Number(product.estoque_disponivel) === 0}
+                  >
                     <span>{product.nome}</span><strong>{money(product.preco_centavos)}</strong>
+                    <small>{product.estoque_disponivel == null ? 'Estoque não controlado' : `${product.estoque_disponivel} disponíveis`}</small>
                     {cart[product.id] > 0 && <b>{cart[product.id]}</b>}
                   </button>
                 ))}
@@ -289,11 +317,7 @@ function PdvHome() {
                 }} />
               )}
               <Divider />
-              <Text strong>Doação</Text>
-              <div className="pdv-donation">
-                {[100, 200, 500].map(value => <Button key={value} onClick={() => setDonation(d => d + value)}>+ {money(value)}</Button>)}
-                <InputNumber min={0} precision={2} decimalSeparator="," value={donation / 100} onChange={v => setDonation(Math.round(Number(v || 0) * 100))} prefix="R$" />
-              </div>
+              <DonationSelector value={donation} onChange={setDonation} />
               <div className="pdv-total"><span>Total</span><strong>{money(total)}</strong></div>
               <Button type="primary" size="large" block disabled={!itemCount} onClick={() => setCheckoutOpen(true)}>Receber {money(total)}</Button>
             </Card>
@@ -309,9 +333,7 @@ function PdvHome() {
 
       <Drawer title="Forma de pagamento" placement="bottom" height="auto" open={checkoutOpen} onClose={() => setCheckoutOpen(false)}>
         <Title level={2} className="pdv-checkout-total">{money(total)}</Title>
-        <Segmented block size="large" options={[
-          { label: 'Receber em PIX', value: 'pix' }, { label: 'Receber em dinheiro', value: 'dinheiro' },
-        ]} onChange={finishSale} disabled={saving} />
+        <PaymentButtons disabled={saving} onSelect={finishSale} />
         {saving && <Spin className="pdv-saving" />}
       </Drawer>
 

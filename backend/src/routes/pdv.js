@@ -80,12 +80,13 @@ router.get('/contexto', requirePdvAccess, async (req, res) => {
     let resumo = null;
     if (caixa) {
       ({ rows: produtos } = await pool.query(
-        `SELECT produto_id AS id, nome, preco_centavos, ordem
+        `SELECT produto_id AS id, nome, preco_centavos, ordem,
+                estoque_inicial, estoque_disponivel
            FROM pdv_caixa_produtos WHERE caixa_id = $1 ORDER BY ordem, nome`,
         [caixa.id]
       ));
       resumo = await getCashSummary(pool, caixa.id);
-    } else if (req.user.role === 'admin') {
+    } else {
       ({ rows: produtos } = await pool.query(
         `SELECT id, nome, preco_centavos, ordem FROM pdv_produtos
           WHERE ativo AND preco_centavos IS NOT NULL ORDER BY ordem, nome`
@@ -107,8 +108,23 @@ router.get('/contexto', requirePdvAccess, async (req, res) => {
 
 router.post('/caixas/abrir', requirePdvAccess, async (req, res) => {
   const valorInicialCentavos = Number(req.body.valorInicialCentavos ?? 0);
+  const estoques = req.body.estoques;
   if (!intInRange(valorInicialCentavos, 0, 100000000)) {
     return res.status(400).json({ error: 'Valor inicial inválido' });
+  }
+  if (!Array.isArray(estoques) || !estoques.length) {
+    return res.status(400).json({ error: 'Informe o estoque inicial de todos os produtos' });
+  }
+  const estoquePorProduto = new Map();
+  for (const item of estoques) {
+    const quantidade = Number(item?.quantidade);
+    if (!UUID_RE.test(item?.produtoId || '') || !intInRange(quantidade, 0, 1000000)) {
+      return res.status(400).json({ error: 'Estoque inicial inválido' });
+    }
+    if (estoquePorProduto.has(item.produtoId)) {
+      return res.status(400).json({ error: 'Produto repetido na configuração do estoque' });
+    }
+    estoquePorProduto.set(item.produtoId, quantidade);
   }
   const client = await pool.connect();
   try {
@@ -118,6 +134,15 @@ router.post('/caixas/abrir', requirePdvAccess, async (req, res) => {
         WHERE ativo AND preco_centavos IS NOT NULL ORDER BY ordem, nome FOR SHARE`
     );
     if (!catalog.length) throw Object.assign(new Error('Cadastre e ative ao menos um produto com preço antes de abrir o caixa'), { statusCode: 409 });
+    if (
+      estoquePorProduto.size !== catalog.length
+      || catalog.some(produto => !estoquePorProduto.has(produto.id))
+    ) {
+      throw Object.assign(new Error('O catálogo mudou. Atualize a tela e informe o estoque de todos os produtos'), { statusCode: 409 });
+    }
+    if (![...estoquePorProduto.values()].some(quantidade => quantidade > 0)) {
+      throw Object.assign(new Error('Informe estoque maior que zero para ao menos um produto'), { statusCode: 400 });
+    }
 
     const { rows } = await client.query(
       `INSERT INTO caixas (data, setor, valor_inicial, status, aberto_por, hora_abertura)
@@ -129,10 +154,12 @@ router.post('/caixas/abrir', requirePdvAccess, async (req, res) => {
     if (!rows.length) throw Object.assign(new Error('O caixa da lanchonete para hoje já existe'), { statusCode: 409 });
     const caixa = rows[0];
     for (const produto of catalog) {
+      const estoqueInicial = estoquePorProduto.get(produto.id);
       await client.query(
-        `INSERT INTO pdv_caixa_produtos (caixa_id, produto_id, nome, preco_centavos, ordem)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [caixa.id, produto.id, produto.nome, produto.preco_centavos, produto.ordem]
+        `INSERT INTO pdv_caixa_produtos
+         (caixa_id, produto_id, nome, preco_centavos, ordem, estoque_inicial, estoque_disponivel)
+         VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+        [caixa.id, produto.id, produto.nome, produto.preco_centavos, produto.ordem, estoqueInicial]
       );
     }
     await client.query('COMMIT');
@@ -290,11 +317,22 @@ router.post('/vendas', requirePdvAccess, async (req, res) => {
 
     const ids = [...quantities.keys()];
     const { rows: products } = await client.query(
-      `SELECT produto_id, nome, preco_centavos FROM pdv_caixa_produtos
-        WHERE caixa_id = $1 AND produto_id = ANY($2::uuid[])`,
+      `SELECT produto_id, nome, preco_centavos, estoque_inicial, estoque_disponivel
+         FROM pdv_caixa_produtos
+        WHERE caixa_id = $1 AND produto_id = ANY($2::uuid[])
+        FOR UPDATE`,
       [caixa.id, ids]
     );
     if (products.length !== ids.length) throw Object.assign(new Error('Um dos produtos não pertence ao catálogo deste caixa'), { statusCode: 409 });
+    for (const product of products) {
+      const quantidade = quantities.get(product.produto_id);
+      if (product.estoque_disponivel !== null && Number(product.estoque_disponivel) < quantidade) {
+        throw Object.assign(
+          new Error(`Estoque insuficiente para ${product.nome}. Disponível: ${product.estoque_disponivel}`),
+          { statusCode: 409 }
+        );
+      }
+    }
     const subtotal = products.reduce((sum, p) => sum + p.preco_centavos * quantities.get(p.produto_id), 0);
     const total = subtotal + doacaoCentavos;
     if (!intInRange(total, 1, 100000000)) throw Object.assign(new Error('Total da venda inválido'), { statusCode: 400 });
@@ -307,6 +345,14 @@ router.post('/vendas', requirePdvAccess, async (req, res) => {
     const saleId = saleRows[0].id;
     for (const product of products) {
       const quantidade = quantities.get(product.produto_id);
+      if (product.estoque_disponivel !== null) {
+        await client.query(
+          `UPDATE pdv_caixa_produtos
+              SET estoque_disponivel = estoque_disponivel - $1
+            WHERE caixa_id = $2 AND produto_id = $3`,
+          [quantidade, caixa.id, product.produto_id]
+        );
+      }
       await client.query(
         `INSERT INTO pdv_venda_itens
          (venda_id, produto_id, produto_nome, quantidade, preco_unitario_centavos, total_centavos)
@@ -357,6 +403,16 @@ router.post('/vendas/:id/cancelar', requirePdvAccess, async (req, res) => {
       [req.user.sub, motivo, venda.id]
     );
     await client.query(
+      `UPDATE pdv_caixa_produtos cp
+          SET estoque_disponivel = LEAST(cp.estoque_inicial, cp.estoque_disponivel + i.quantidade)
+         FROM pdv_venda_itens i
+        WHERE i.venda_id = $1
+          AND cp.caixa_id = $2
+          AND cp.produto_id = i.produto_id
+          AND cp.estoque_disponivel IS NOT NULL`,
+      [venda.id, venda.caixa_id]
+    );
+    await client.query(
       `INSERT INTO movimentacoes_caixa
        (caixa_id, tipo, setor, valor, descricao, forma_pagamento, registrado_por, pdv_venda_id, pdv_evento)
        VALUES ($1, 'saida', 'lanche', $2, $3, $4, $5, $6, 'cancelamento')`,
@@ -387,11 +443,22 @@ router.get('/relatorios/diario', requirePdvAccess, async (req, res) => {
     if (!caixa) return res.json({ data: { caixa: null, produtos: [], resumo: null }, error: null });
     const resumo = await getCashSummary(pool, caixa.id);
     const { rows: produtos } = await pool.query(
-      `SELECT i.produto_id, i.produto_nome AS nome, SUM(i.quantidade)::int AS quantidade,
-              SUM(i.total_centavos)::int AS total_centavos
-         FROM pdv_venda_itens i JOIN pdv_vendas v ON v.id = i.venda_id
-        WHERE v.caixa_id = $1 AND v.status = 'concluida'
-        GROUP BY i.produto_id, i.produto_nome ORDER BY i.produto_nome`,
+      `SELECT cp.produto_id, cp.nome,
+              COALESCE(vendidos.quantidade, 0)::int AS quantidade,
+              COALESCE(vendidos.total_centavos, 0)::int AS total_centavos,
+              cp.estoque_inicial, cp.estoque_disponivel
+         FROM pdv_caixa_produtos cp
+         LEFT JOIN (
+           SELECT i.produto_id,
+                  SUM(i.quantidade)::int AS quantidade,
+                  SUM(i.total_centavos)::int AS total_centavos
+             FROM pdv_venda_itens i
+             JOIN pdv_vendas v ON v.id = i.venda_id
+            WHERE v.caixa_id = $1 AND v.status = 'concluida'
+            GROUP BY i.produto_id
+         ) vendidos ON vendidos.produto_id = cp.produto_id
+        WHERE cp.caixa_id = $1
+        ORDER BY cp.ordem, cp.nome`,
       [caixa.id]
     );
     res.json({ data: { caixa, produtos, resumo }, error: null });

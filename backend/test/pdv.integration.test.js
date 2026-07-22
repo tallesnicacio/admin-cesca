@@ -49,13 +49,36 @@ test('fluxo diário completo, RBAC, idempotência e fechamento', async () => {
   const unsafePatch = await request(app).patch('/api/data/profiles').set('Authorization', auth.admin).send({ name: 'Todos' });
   assert.equal(unsafePatch.status, 400);
 
-  const opened = await request(app).post('/api/pdv/caixas/abrir').set('Authorization', auth.seller).send({ valorInicialCentavos: 5000 });
+  const catalog = await request(app).get('/api/pdv/admin/produtos').set('Authorization', auth.admin);
+  assert.equal(catalog.status, 200);
+  const salgadoCatalog = catalog.body.data.find(p => p.nome === 'Salgado');
+  const refriCatalog = catalog.body.data.find(p => p.nome === 'Refrigerante');
+
+  const sellerOpeningContext = await request(app).get('/api/pdv/contexto').set('Authorization', auth.seller);
+  assert.equal(sellerOpeningContext.status, 200);
+  assert.equal(sellerOpeningContext.body.data.caixa, null);
+  assert.equal(sellerOpeningContext.body.data.produtos.length, 2);
+
+  const missingStock = await request(app).post('/api/pdv/caixas/abrir').set('Authorization', auth.seller).send({ valorInicialCentavos: 5000 });
+  assert.equal(missingStock.status, 400);
+
+  const opened = await request(app).post('/api/pdv/caixas/abrir').set('Authorization', auth.seller).send({
+    valorInicialCentavos: 5000,
+    estoques: [
+      { produtoId: salgadoCatalog.id, quantidade: 3 },
+      { produtoId: refriCatalog.id, quantidade: 3 },
+    ],
+  });
   assert.equal(opened.status, 201, opened.text);
 
   const context = await request(app).get('/api/pdv/contexto').set('Authorization', auth.seller);
   assert.equal(context.status, 200);
   const salgado = context.body.data.produtos.find(p => p.nome === 'Salgado');
   const refri = context.body.data.produtos.find(p => p.nome === 'Refrigerante');
+  assert.equal(salgado.estoque_inicial, 3);
+  assert.equal(salgado.estoque_disponivel, 3);
+  assert.equal(refri.estoque_inicial, 3);
+  assert.equal(refri.estoque_disponivel, 3);
 
   const cashPayload = {
     requestId: '20000000-0000-4000-8000-000000000001',
@@ -78,17 +101,35 @@ test('fluxo diário completo, RBAC, idempotência e fechamento', async () => {
   assert.equal(pixSale.status, 201, pixSale.text);
   assert.equal(pixSale.body.data.total_centavos, 500);
 
+  const secondPixSale = await request(app).post('/api/pdv/vendas').set('Authorization', auth.seller).send({
+    requestId: '20000000-0000-4000-8000-000000000003', itens: [{ produtoId: refri.id, quantidade: 1 }], doacaoCentavos: 0, formaPagamento: 'pix',
+  });
+  assert.equal(secondPixSale.status, 201, secondPixSale.text);
+  assert.equal(secondPixSale.body.data.total_centavos, 400);
+
+  const outOfStock = await request(app).post('/api/pdv/vendas').set('Authorization', auth.seller).send({
+    requestId: '20000000-0000-4000-8000-000000000004', itens: [{ produtoId: refri.id, quantidade: 1 }], doacaoCentavos: 0, formaPagamento: 'pix',
+  });
+  assert.equal(outOfStock.status, 409);
+  assert.match(outOfStock.body.error, /Estoque insuficiente/);
+
+  const stockAfterSales = await request(app).get('/api/pdv/contexto').set('Authorization', auth.seller);
+  assert.equal(stockAfterSales.body.data.produtos.find(p => p.nome === 'Salgado').estoque_disponivel, 1);
+  assert.equal(stockAfterSales.body.data.produtos.find(p => p.nome === 'Refrigerante').estoque_disponivel, 0);
+
   const forbiddenCancel = await request(app).post(`/api/pdv/vendas/${cashSale.body.data.id}/cancelar`).set('Authorization', auth.other).send({ motivo: 'Venda incorreta' });
   assert.equal(forbiddenCancel.status, 403);
 
   const report = await request(app).get('/api/pdv/relatorios/diario').set('Authorization', auth.seller);
   assert.equal(report.status, 200);
   assert.equal(report.body.data.resumo.dinheiro_centavos, 1600);
-  assert.equal(report.body.data.resumo.pix_centavos, 500);
+  assert.equal(report.body.data.resumo.pix_centavos, 900);
   assert.equal(report.body.data.resumo.doacao_centavos, 300);
-  assert.equal(report.body.data.resumo.total_centavos, 2100);
+  assert.equal(report.body.data.resumo.total_centavos, 2500);
   assert.equal(report.body.data.produtos.find(p => p.nome === 'Salgado').quantidade, 2);
-  assert.equal(report.body.data.produtos.find(p => p.nome === 'Refrigerante').quantidade, 2);
+  assert.equal(report.body.data.produtos.find(p => p.nome === 'Refrigerante').quantidade, 3);
+  assert.equal(report.body.data.produtos.find(p => p.nome === 'Salgado').estoque_disponivel, 1);
+  assert.equal(report.body.data.produtos.find(p => p.nome === 'Refrigerante').estoque_disponivel, 0);
 
   const closed = await request(app).post(`/api/pdv/caixas/${opened.body.data.id}/fechar`).set('Authorization', auth.seller).send({ valorContadoCentavos: 6600 });
   assert.equal(closed.status, 200, closed.text);
@@ -103,4 +144,8 @@ test('fluxo diário completo, RBAC, idempotência e fechamento', async () => {
   const cancelled = await request(app).post(`/api/pdv/vendas/${cashSale.body.data.id}/cancelar`).set('Authorization', auth.seller).send({ motivo: 'Pedido lançado em duplicidade' });
   assert.equal(cancelled.status, 200, cancelled.text);
   assert.equal(cancelled.body.data.status, 'cancelada');
+
+  const stockAfterCancellation = await request(app).get('/api/pdv/contexto').set('Authorization', auth.seller);
+  assert.equal(stockAfterCancellation.body.data.produtos.find(p => p.nome === 'Salgado').estoque_disponivel, 3);
+  assert.equal(stockAfterCancellation.body.data.produtos.find(p => p.nome === 'Refrigerante').estoque_disponivel, 1);
 });

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Col, DatePicker, Empty, Form, Input, InputNumber, Modal,
+  Alert, Button, Card, Col, DatePicker, Divider, Empty, Form, Input, InputNumber, Modal,
   Row, Space, Statistic, Switch, Table, Tabs, Tag, Typography, message,
 } from 'antd';
 import { EditOutlined, PlusOutlined, PrinterOutlined, ShopOutlined } from '@ant-design/icons';
@@ -18,7 +18,10 @@ function Report({ data }) {
   if (!data?.caixa) return <Empty description="Não houve caixa nesta data" />;
   return <div className="lanchonete-print">
     <Row gutter={[16, 16]}>
-      {data.produtos.map(item => <Col xs={12} md={6} key={item.produto_id}><Statistic title={item.nome} value={item.quantidade} suffix="un." /></Col>)}
+      {data.produtos.map(item => <Col xs={12} md={6} key={item.produto_id}>
+        <Statistic title={`${item.nome} vendidos`} value={item.quantidade} suffix="un." />
+        {item.estoque_inicial != null && <Text type="secondary">Estoque: {item.estoque_inicial} inicial · {item.estoque_disponivel} restante</Text>}
+      </Col>)}
       <Col xs={12} md={6}><Statistic title="Doações" value={money(data.resumo.doacao_centavos)} /></Col>
       <Col xs={12} md={6}><Statistic title="PIX" value={money(data.resumo.pix_centavos)} /></Col>
       <Col xs={12} md={6}><Statistic title="Dinheiro" value={money(data.resumo.dinheiro_centavos)} /></Col>
@@ -121,6 +124,13 @@ export default function LanchoneteManager() {
             <Col xs={12} md={6}><Statistic title="PIX" value={money(context.resumo?.pix_centavos)} /></Col>
             <Col xs={12} md={6}><Statistic title="Dinheiro" value={money(context.resumo?.dinheiro_centavos)} /></Col>
             <Col xs={12} md={6}><Statistic title="Total" value={money(context.resumo?.total_centavos)} /></Col>
+          </Row>
+          <Divider orientation="left">Estoque do dia</Divider>
+          <Row gutter={[16, 16]}>
+            {context.produtos.map(produto => <Col xs={12} md={6} key={produto.id}>
+              <Statistic title={produto.nome} value={produto.estoque_disponivel ?? '—'} suffix={produto.estoque_disponivel == null ? null : 'restantes'} />
+              {produto.estoque_inicial != null && <Text type="secondary">Inicial: {produto.estoque_inicial}</Text>}
+            </Col>)}
           </Row>
           <Space style={{ marginTop: 20 }}><Button href="https://pdv.cesca.digital" target="_blank">Abrir frente de caixa</Button>{context.caixa.status === 'fechado' && <Button type="primary" onClick={reopen}>Reabrir</Button>}</Space>
         </>}
