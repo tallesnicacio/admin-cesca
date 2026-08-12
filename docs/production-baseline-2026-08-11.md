@@ -92,9 +92,12 @@ O estado sem avaliações torna este o momento mais seguro para corrigir a ident
 - Paridade do schema recuperado: 131 colunas, 77 constraints e 30 índices, sem faltas ou sobras em relação ao inventário de produção.
 - Teste integrado backend aprovado: fluxo diário, RBAC, idempotência e fechamento.
 - Dependências compatíveis foram atualizadas sem `--force`: backend passou de 1 alta para zero vulnerabilidades.
-- Frontend passou de 63 vulnerabilidades (4 críticas) para 28 (9 baixas, 5 moderadas e 14 altas), sem vulnerabilidade crítica.
+- Frontend passou de 63 vulnerabilidades para zero após atualizar dependências diretas e migrar o toolchain de Create React App para Vite/Vitest.
 - `jspdf` foi atualizado para 4.2.1 e SheetJS para o pacote oficial 0.20.3; exportações sintéticas PDF/XLSX e o build de produção foram aprovados.
-- As 14 altas restantes pertencem à cadeia legada do `react-scripts` 5. Eliminá-las requer migração separada do toolchain (por exemplo, para Vite), não um `audit fix --force` destrutivo.
+- O build Vite preserva a saída `build/`, assets em `static/`, caminhos relativos, manifestos Admin/PDV e o service worker de sincronização offline.
+- A imagem Docker foi reconstruída em Node 20 e servida por Nginx; `/`, `/health`, os dois manifestos e os dois scripts de service worker responderam HTTP 200.
+- Smoke visual local confirmou as telas de login Admin e PDV sem erros no console.
+- Uma credencial Resend foi encontrada em documentação histórica e removida do conteúdo atual. Como continua presente no histórico Git anterior, ela deve ser rotacionada no provedor.
 
 ## Limites
 
@@ -103,5 +106,5 @@ Esta branch representa a melhor reconstrução verificável da fonte implantada.
 Nenhum deploy deve partir desta branch antes de:
 
 1. revisão do diff recuperado;
-2. aceite temporário do risco de build do `react-scripts` ou migração do toolchain;
+2. rotação da credencial Resend exposta historicamente;
 3. aprovação humana para publicação.

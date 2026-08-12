@@ -48,12 +48,12 @@ Após o deploy, é necessário configurar a chave API do Resend como variável d
 3. Selecione a função `send-confirmation-email`
 4. Adicione a variável de ambiente:
    - Nome: `RESEND_API_KEY`
-   - Valor: `***REMOVED_FROM_GIT_HISTORY***`
+   - Valor: `defina_no_gerenciador_de_secrets`
 
 ### Via CLI:
 
 ```bash
-supabase secrets set RESEND_API_KEY=***REMOVED_FROM_GIT_HISTORY***
+supabase secrets set RESEND_API_KEY=seu_secret
 ```
 
 ## Testar a Função

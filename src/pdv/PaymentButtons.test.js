@@ -8,7 +8,7 @@ test('PIX dispara uma nova confirmação em cliques consecutivos', () => {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
-  const onSelect = jest.fn();
+  const onSelect = vi.fn();
 
   act(() => root.render(<PaymentButtons onSelect={onSelect} />));
   const pix = container.querySelector('.pdv-payment-pix');

@@ -87,7 +87,7 @@ function AppContent() {
 
 function App() {
   const isPdv = window.location.hostname === 'pdv.cesca.digital'
-    || process.env.REACT_APP_APP_MODE === 'pdv';
+    || import.meta.env.VITE_APP_MODE === 'pdv';
   return (
     <ConfigProvider
       locale={ptBR}
