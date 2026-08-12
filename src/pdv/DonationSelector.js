@@ -36,4 +36,3 @@ export default function DonationSelector({ value = 0, onChange }) {
     </>
   );
 }
-
