@@ -6,7 +6,6 @@ import {
   temCapacitacao,
   temRestricao,
   detectarConflito,
-  obterFuncaoFixa,
 } from './detectorConflitos';
 
 /**

@@ -42,7 +42,6 @@ function PresencaReports() {
   const [loading, setLoading] = useState(true);
   const [estatisticas, setEstatisticas] = useState([]);
   const [giras, setGiras] = useState([]);
-  const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
   const [detalhes, setDetalhes] = useState(null);
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
@@ -50,6 +49,7 @@ function PresencaReports() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroDataInicio, filtroDataFim]);
 
   const loadData = async () => {
@@ -149,12 +149,10 @@ function PresencaReports() {
   };
 
   const handleVerDetalhes = (trabalhador) => {
-    setSelectedTrabalhador(trabalhador);
     loadDetalhes(trabalhador.trabalhador_id || trabalhador.id);
   };
 
   const handleFecharDetalhes = () => {
-    setSelectedTrabalhador(null);
     setDetalhes(null);
     setModalVisible(false);
   };

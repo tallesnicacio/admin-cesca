@@ -45,12 +45,12 @@ Foi implementada uma funcionalidade completa de confirmação de atendimentos co
 
 **Frontend (.env)**:
 ```bash
-REACT_APP_RESEND_API_KEY=re_dnCs8W19_MS9jbUydTNgnugEYy6gpv2Qo
+REACT_APP_RESEND_API_KEY=defina_no_gerenciador_de_secrets
 ```
 
 **Supabase (Secrets)**:
 ```bash
-RESEND_API_KEY=re_dnCs8W19_MS9jbUydTNgnugEYy6gpv2Qo
+RESEND_API_KEY=defina_no_gerenciador_de_secrets
 ```
 
 ### 2. Deploy da Edge Function
@@ -63,7 +63,7 @@ export SUPABASE_ACCESS_TOKEN=seu_token_aqui
 supabase functions deploy send-confirmation-email --project-ref mmfsesanudlzgfbjlpzk
 
 # Configurar secret
-supabase secrets set RESEND_API_KEY=re_dnCs8W19_MS9jbUydTNgnugEYy6gpv2Qo --project-ref mmfsesanudlzgfbjlpzk
+supabase secrets set RESEND_API_KEY=seu_secret --project-ref mmfsesanudlzgfbjlpzk
 ```
 
 Ou use o script automatizado:

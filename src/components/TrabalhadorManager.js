@@ -212,16 +212,6 @@ function TrabalhadorManager() {
     });
   };
 
-  const getStatusTag = (status) => {
-    const statusConfig = {
-      ativo: { color: 'green', text: 'Ativo' },
-      inativo: { color: 'red', text: 'Inativo' },
-      afastado: { color: 'orange', text: 'Afastado' }
-    };
-    const config = statusConfig[status] || statusConfig.ativo;
-    return <Tag color={config.color}>{config.text}</Tag>;
-  };
-
   const columns = [
     {
       title: 'Nº',

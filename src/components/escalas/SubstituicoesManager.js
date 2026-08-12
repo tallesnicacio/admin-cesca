@@ -51,8 +51,6 @@ function SubstituicoesManager({ userProfile }) {
 
   // Modal
   const [modalNovo, setModalNovo] = useState(false);
-  const [modalDetalhes, setModalDetalhes] = useState(false);
-  const [substituicaoSelecionada, setSubstituicaoSelecionada] = useState(null);
 
   // Form nova substituição
   const [escalaId, setEscalaId] = useState('');
@@ -76,6 +74,7 @@ function SubstituicoesManager({ userProfile }) {
 
   useEffect(() => {
     filterSubstituicoes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [substituicoes, statusFiltro]);
 
   const loadDados = async () => {

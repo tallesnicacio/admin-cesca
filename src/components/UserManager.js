@@ -28,13 +28,13 @@ import {
   LockOutlined,
   SafetyOutlined
 } from '@ant-design/icons';
-import { supabase } from '../supabaseClient';
+import { apiFetch, supabase } from '../supabaseClient';
 
 const { Title, Text } = Typography;
 
 const USE_EDGE_FUNCTION = false;
 
-function UserManager() {
+function UserManager({ currentUserRole = 'admin' }) {
   const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -60,13 +60,9 @@ function UserManager() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUsers(data || []);
+      const result = await apiFetch('/auth/users', { cache: 'no-store' });
+      if (result.error) throw new Error(typeof result.error === 'string' ? result.error : result.error.message);
+      setUsers(result.data || []);
     } catch (error) {
       logger.error('Erro ao carregar usuários:', error);
       message.error('Erro ao carregar usuários: ' + error.message);
@@ -91,6 +87,7 @@ function UserManager() {
   const openCreateModal = () => {
     setModalMode('create');
     form.resetFields();
+    form.setFieldsValue({ role: currentUserRole === 'coordenador_lanches' ? 'vendedor' : 'user' });
     setSelectedUser(null);
     setShowModal(true);
   };
@@ -147,37 +144,15 @@ function UserManager() {
 
           if (authError) throw authError;
 
-          if (authData.user) {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .upsert({
-                id: authData.user.id,
-                email: values.email,
-                name: values.name,
-                role: values.role,
-                is_admin: values.role === 'admin'
-              }, {
-                onConflict: 'id'
-              });
-
-            if (profileError) {
-              logger.warn('Aviso ao criar perfil:', profileError);
-            }
-          }
-
+          if (!authData.user) throw new Error('Usuário não foi criado');
           message.success('Usuário criado com sucesso!', 3);
         }
       } else {
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            name: values.name,
-            role: values.role,
-            is_admin: values.role === 'admin'
-          })
-          .eq('id', selectedUser.id);
-
-        if (error) throw error;
+        const result = await apiFetch(`/auth/users/${selectedUser.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ name: values.name, role: values.role }),
+        });
+        if (result.error) throw new Error(typeof result.error === 'string' ? result.error : result.error.message);
         message.success('Usuário atualizado com sucesso!');
       }
 
@@ -211,12 +186,11 @@ function UserManager() {
       cancelText: 'Cancelar',
       onOk: async () => {
         try {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ active: false })
-            .eq('id', user.id);
-
-          if (error) throw error;
+          const result = await apiFetch(`/auth/users/${user.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name: user.name, role: user.role, isActive: false }),
+          });
+          if (result.error) throw new Error(typeof result.error === 'string' ? result.error : result.error.message);
           message.success('Usuário desativado com sucesso!');
           loadUsers();
         } catch (error) {
@@ -248,14 +222,17 @@ function UserManager() {
       key: 'role',
       render: (role) => (
         <Tag
-          color={role === 'admin' ? 'purple' : 'blue'}
+          color={role === 'admin' ? 'purple' : role === 'coordenador_lanches' ? 'orange' : role === 'coordinator' ? 'gold' : role === 'vendedor' ? 'green' : 'blue'}
           style={{ borderRadius: 6, fontWeight: 500 }}
         >
-          {role === 'admin' ? 'Administrador' : 'Usuário'}
+          {role === 'admin' ? 'Administrador' : role === 'coordenador_lanches' ? 'Coordenador de lanches' : role === 'coordinator' ? 'Coordenador' : role === 'vendedor' ? 'Vendedor' : 'Usuário'}
         </Tag>
       ),
       filters: [
         { text: 'Administrador', value: 'admin' },
+        { text: 'Coordenador', value: 'coordinator' },
+        { text: 'Coordenador de lanches', value: 'coordenador_lanches' },
+        { text: 'Vendedor', value: 'vendedor' },
         { text: 'Usuário', value: 'user' },
       ],
       onFilter: (value, record) => record.role === value,
@@ -306,7 +283,7 @@ function UserManager() {
               Usuários
             </Title>
             <Text type="secondary" style={{ fontSize: 15 }}>
-              Gerencie usuários e permissões do sistema
+              {currentUserRole === 'coordenador_lanches' ? 'Gerencie somente a equipe da lanchonete' : 'Gerencie usuários e permissões do sistema'}
             </Text>
           </div>
           <Button
@@ -347,9 +324,9 @@ function UserManager() {
                 border: '1px solid #f0f0f0',
               }}
             >
-              <Text type="secondary" style={{ fontSize: 13 }}>Administradores</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>{currentUserRole === 'coordenador_lanches' ? 'Coordenadores de lanches' : 'Administradores'}</Text>
               <div style={{ fontSize: 36, fontWeight: 600, marginTop: 8, color: '#667eea' }}>
-                {users.filter(u => u.role === 'admin').length}
+                {users.filter(u => u.role === (currentUserRole === 'coordenador_lanches' ? 'coordenador_lanches' : 'admin')).length}
               </div>
             </div>
           </Col>
@@ -362,9 +339,9 @@ function UserManager() {
                 border: '1px solid #f0f0f0',
               }}
             >
-              <Text type="secondary" style={{ fontSize: 13 }}>Usuários Comuns</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>{currentUserRole === 'coordenador_lanches' ? 'Vendedores' : 'Usuários Comuns'}</Text>
               <div style={{ fontSize: 36, fontWeight: 600, marginTop: 8, color: '#3b82f6' }}>
-                {users.filter(u => u.role === 'user').length}
+                {users.filter(u => u.role === (currentUserRole === 'coordenador_lanches' ? 'vendedor' : 'user')).length}
               </div>
             </div>
           </Col>
@@ -416,7 +393,7 @@ function UserManager() {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{ role: 'user' }}
+          initialValues={{ role: currentUserRole === 'coordenador_lanches' ? 'vendedor' : 'user' }}
           style={{ marginTop: 24 }}
         >
           <Form.Item
@@ -495,8 +472,11 @@ function UserManager() {
             rules={[{ required: true, message: 'Perfil é obrigatório' }]}
           >
             <Select size="large" suffixIcon={<SafetyOutlined style={{ color: '#999' }} />}>
-              <Select.Option value="user">Usuário</Select.Option>
-              <Select.Option value="admin">Administrador</Select.Option>
+              {currentUserRole === 'admin' && <Select.Option value="user">Usuário</Select.Option>}
+              {currentUserRole === 'admin' && <Select.Option value="coordinator">Coordenador</Select.Option>}
+              <Select.Option value="coordenador_lanches">Coordenador de lanches</Select.Option>
+              <Select.Option value="vendedor">Vendedor da lanchonete</Select.Option>
+              {currentUserRole === 'admin' && <Select.Option value="admin">Administrador</Select.Option>}
             </Select>
           </Form.Item>
 

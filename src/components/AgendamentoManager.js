@@ -4,6 +4,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import logger from '../utils/logger';
 import * as XLSX from 'xlsx';
 import ConfirmacaoEmailModal from './ConfirmacaoEmailModal';
+import { getChaveGira } from '../utils/giraUtils';
 import {
   Table,
   Button,
@@ -27,9 +28,11 @@ import {
   SearchOutlined,
   CheckOutlined,
   CloseOutlined,
-  DeleteOutlined,
+  UndoOutlined,
+  InboxOutlined,
   DownloadOutlined,
   PrinterOutlined,
+  MailOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 
@@ -47,12 +50,14 @@ function AgendamentoManager({ userProfile }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [modalOpcaoVisible, setModalOpcaoVisible] = useState(false);
   const [modalCancelarVisible, setModalCancelarVisible] = useState(false);
-  const [modalExcluirVisible, setModalExcluirVisible] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
   const [opcaoSelecionada, setOpcaoSelecionada] = useState('primeira');
   const [modalEmailVisible, setModalEmailVisible] = useState(false);
   const [agendamentoParaEmail, setAgendamentoParaEmail] = useState(null);
   const [opcaoEscolhidaEmail, setOpcaoEscolhidaEmail] = useState('primeira');
+  const [emailModalMode, setEmailModalMode] = useState('send');
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [filterGira, setFilterGira] = useState('all');
 
   // Debounce search term para melhorar performance (500ms delay)
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -72,7 +77,7 @@ function AgendamentoManager({ userProfile }) {
   useEffect(() => {
     filterAgendamentos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchTerm, filterStatus, agendamentos]);
+  }, [debouncedSearchTerm, filterStatus, filterGira, agendamentos]);
 
   const loadAgendamentos = async () => {
     try {
@@ -89,7 +94,8 @@ function AgendamentoManager({ userProfile }) {
       const { data, error } = await supabase
         .from('agendamentos')
         .select('*')
-        .order('data_solicitacao', { ascending: false });
+        .order('data_solicitacao', { ascending: false })
+        .limit(500); // Limita aos 500 registros mais recentes para evitar sobrecarga
 
       logger.log('📬 Resposta do Supabase:', {
         quantidadeAgendamentos: data?.length || 0,
@@ -108,7 +114,7 @@ function AgendamentoManager({ userProfile }) {
   };
 
   const filterAgendamentos = () => {
-    let filtered = [...agendamentos];
+    let filtered = agendamentos.filter(ag => !ag.arquivado_at);
 
     if (debouncedSearchTerm) {
       filtered = filtered.filter(ag =>
@@ -122,7 +128,26 @@ function AgendamentoManager({ userProfile }) {
       filtered = filtered.filter(ag => ag?.status === filterStatus);
     }
 
+    if (filterGira !== 'all') {
+      filtered = filtered.filter(ag => getChaveGira(ag) === filterGira);
+    }
+
     setFilteredAgendamentos(filtered);
+  };
+
+  const manageAppointments = async (action, ids, sendEmail = false) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) throw new Error('Você não está autenticado.');
+    const { data, error } = await supabase.functions.invoke('manage-appointments', {
+      body: {
+        action,
+        ids,
+        sendEmail,
+        actor: userProfile?.name || sessionData.session.user?.email || 'Admin'
+      }
+    });
+    if (error) throw new Error(error.message || 'Falha ao atualizar agendamentos');
+    return data;
   };
 
   const handleConfirmarAgendamento = async (agendamento) => {
@@ -148,6 +173,7 @@ function AgendamentoManager({ userProfile }) {
         // Após confirmar, mostrar modal de envio de email
         setAgendamentoParaEmail(agendamento);
         setOpcaoEscolhidaEmail('primeira');
+        setEmailModalMode('send');
 
         // Aguardar um pouco antes de mostrar o modal de email
         setTimeout(() => {
@@ -185,6 +211,7 @@ function AgendamentoManager({ userProfile }) {
       // Após confirmar, mostrar modal de envio de email
       setAgendamentoParaEmail(agendamentoSelecionado);
       setOpcaoEscolhidaEmail(opcaoSelecionada);
+      setEmailModalMode('send');
 
       setModalOpcaoVisible(false);
       setAgendamentoSelecionado(null);
@@ -281,34 +308,18 @@ function AgendamentoManager({ userProfile }) {
     }
   };
 
-  const handleDelete = (agendamento) => {
-    logger.log('🗑️ ========== BOTÃO EXCLUIR CLICADO ==========');
-    logger.log('🔢 ID do agendamento:', agendamento?.id);
-    setAgendamentoSelecionado(agendamento);
-    setModalExcluirVisible(true);
-  };
-
-  const confirmarExclusao = async () => {
-    if (!agendamentoSelecionado) return;
-
-    try {
-      setModalLoading(true);
-      const { error } = await supabase
-        .from('agendamentos')
-        .delete()
-        .eq('id', agendamentoSelecionado.id);
-
-      if (error) throw error;
-      message.success('Agendamento excluído com sucesso!');
-      setModalExcluirVisible(false);
-      setAgendamentoSelecionado(null);
-      loadAgendamentos();
-    } catch (error) {
-      logger.error('Erro ao excluir:', error);
-      message.error('Erro ao excluir: ' + error.message);
-    } finally {
-      setModalLoading(false);
+  const handleReenviarEmailConfirmacao = (agendamento) => {
+    if (agendamento?.status !== 'Confirmado') {
+      message.warning('O e-mail só pode ser reenviado para agendamentos confirmados.');
+      return;
     }
+
+    setAgendamentoParaEmail(agendamento);
+    setOpcaoEscolhidaEmail(
+      agendamento.opcao_escolhida === 'segunda' ? 'segunda' : 'primeira'
+    );
+    setEmailModalMode('resend');
+    setModalEmailVisible(true);
   };
 
   const handleCancelarAgendamento = (agendamento) => {
@@ -328,11 +339,74 @@ function AgendamentoManager({ userProfile }) {
 
     try {
       setModalLoading(true);
-      await handleUpdateStatus(agendamentoSelecionado.id, 'Cancelado');
+      const result = await manageAppointments('cancel', [agendamentoSelecionado.id], true);
+      if (result.emailFailures?.length) {
+        message.warning('Agendamento cancelado, mas o email não pôde ser enviado.');
+      } else {
+        message.success('Agendamento cancelado e email enviado.');
+      }
       setModalCancelarVisible(false);
       setAgendamentoSelecionado(null);
+      loadAgendamentos();
     } catch (error) {
       logger.error('❌ Erro ao cancelar:', error);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const restaurarAgendamento = async (agendamento) => {
+    try {
+      setModalLoading(true);
+      await manageAppointments('restore', [agendamento.id]);
+      message.success('Cancelamento desfeito com sucesso.');
+      loadAgendamentos();
+    } catch (error) {
+      message.error(error.message);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const cancelarSelecionados = () => {
+    const elegiveis = agendamentos.filter(ag =>
+      selectedRowKeys.includes(ag.id) && ag.status === 'Pendente de confirmação'
+    );
+    if (!elegiveis.length) return message.warning('Selecione agendamentos pendentes.');
+    Modal.confirm({
+      title: `Cancelar ${elegiveis.length} pendente(s)?`,
+      content: 'Os registros serão preservados e os consulentes receberão email de cancelamento.',
+      okText: 'Cancelar agendamentos',
+      okType: 'danger',
+      cancelText: 'Voltar',
+      onOk: async () => {
+        setModalLoading(true);
+        try {
+          const result = await manageAppointments('cancel', elegiveis.map(ag => ag.id), true);
+          setSelectedRowKeys([]);
+          await loadAgendamentos();
+          if (result.emailFailures?.length) {
+            message.warning(`${result.updated} cancelados; ${result.emailFailures.length} email(s) falharam.`);
+          } else {
+            message.success(`${result.updated} agendamento(s) cancelado(s) com aviso por email.`);
+          }
+        } finally {
+          setModalLoading(false);
+        }
+      }
+    });
+  };
+
+  const arquivarSelecionados = async () => {
+    if (!selectedRowKeys.length) return message.warning('Selecione os registros que deseja arquivar.');
+    try {
+      setModalLoading(true);
+      await manageAppointments('archive', selectedRowKeys);
+      message.success(`${selectedRowKeys.length} registro(s) arquivado(s), sem exclusão.`);
+      setSelectedRowKeys([]);
+      loadAgendamentos();
+    } catch (error) {
+      message.error(error.message);
     } finally {
       setModalLoading(false);
     }
@@ -344,6 +418,9 @@ function AgendamentoManager({ userProfile }) {
       'Nome': ag.nome_completo,
       'Email': ag.email,
       'Telefone': ag.telefone,
+      'Menor de Idade': ag.menor_de_idade ? 'Sim' : 'Não',
+      'Nome do Responsável': ag.menor_de_idade ? (ag.nome_responsavel || '-') : '-',
+      'CPF do Responsável': ag.menor_de_idade ? (ag.cpf_responsavel || '-') : '-',
       'Primeira Opção': ag.primeira_opcao,
       'Segunda Opção': ag.segunda_opcao || '-',
       'Opção Escolhida': ag.opcao_escolhida === 'primeira' ? '1ª Opção' : ag.opcao_escolhida === 'segunda' ? '2ª Opção' : '-',
@@ -360,8 +437,21 @@ function AgendamentoManager({ userProfile }) {
   };
 
   const printCallList = () => {
-    // Filtrar apenas confirmados
-    const confirmados = (agendamentos || []).filter(a => a?.status === 'Confirmado');
+    const giraLista = filterGira === 'all' ? girasDisponiveis[0] : filterGira;
+
+    if (!giraLista) {
+      message.warning('Nenhuma gira com agendamentos confirmados disponível.');
+      return;
+    }
+
+    // Quando o usuário ainda não escolheu, usa e exibe a gira mais recente.
+    if (filterGira === 'all') setFilterGira(giraLista);
+
+    const confirmados = (agendamentos || []).filter(a =>
+      a?.status === 'Confirmado' &&
+      !a.arquivado_at &&
+      getChaveGira(a) === giraLista
+    );
 
     if (confirmados.length === 0) {
       message.warning('Nenhum agendamento confirmado para imprimir');
@@ -453,8 +543,8 @@ function AgendamentoManager({ userProfile }) {
         </style>
       </head>
       <body>
-        <h1>🌟 Centro Espírita Santa Clara de Assis 🌟</h1>
-        <div class="date">Lista de Chamada - ${new Date().toLocaleDateString('pt-BR', {
+        <h1>Centro Espírita Santa Clara de Assis</h1>
+        <div class="date">Lista de Chamada - ${new Date(`${giraLista}T12:00:00`).toLocaleDateString('pt-BR', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
@@ -475,7 +565,18 @@ function AgendamentoManager({ userProfile }) {
               ${porTipo[tipo].map((ag, index) => `
                 <tr>
                   <td>${index + 1}</td>
-                  <td><strong>${ag.nome_completo}</strong></td>
+                  <td>
+                    <strong>${ag.nome_completo}</strong>
+                    ${ag.menor_de_idade ? `
+                      <div style="margin-top:4px;font-size:0.85em;color:#b45309;">
+                        <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold;">MENOR DE IDADE</span>
+                        <div style="margin-top:2px;color:#444;">
+                          Responsável: <strong>${ag.nome_responsavel || '-'}</strong>
+                          ${ag.cpf_responsavel ? ` &middot; CPF: ${ag.cpf_responsavel}` : ''}
+                        </div>
+                      </div>
+                    ` : ''}
+                  </td>
                   <td>${ag.telefone}</td>
                 </tr>
               `).join('')}
@@ -508,11 +609,19 @@ function AgendamentoManager({ userProfile }) {
     }
   };
 
+  const girasDisponiveis = [...new Set(
+    agendamentos
+      .filter(ag => ag.status === 'Confirmado' && !ag.arquivado_at)
+      .map(getChaveGira)
+      .filter(Boolean)
+  )].sort().reverse();
+
   const getStatusTag = (status) => {
     const statusConfig = {
       'Pendente de confirmação': { color: 'orange', text: 'Pendente' },
       'Confirmado': { color: 'green', text: 'Confirmado' },
-      'Cancelado': { color: 'red', text: 'Cancelado' }
+      'Cancelado': { color: 'red', text: 'Cancelado' },
+      'Cancelado pelo consulente': { color: 'red', text: 'Cancelado pelo consulente' }
     };
     const config = statusConfig[status] || { color: 'default', text: status };
     return <Tag color={config.color}>{config.text}</Tag>;
@@ -535,7 +644,16 @@ function AgendamentoManager({ userProfile }) {
       title: 'Nome',
       dataIndex: 'nome_completo',
       key: 'nome_completo',
-      render: (nome) => <Text strong>{nome}</Text>,
+      render: (nome, record) => (
+        <Space size={6}>
+          <Text strong>{nome}</Text>
+          {record.menor_de_idade && (
+            <Tag color="gold" style={{ marginLeft: 0, fontWeight: 600 }}>
+              Menor
+            </Tag>
+          )}
+        </Space>
+      ),
       sorter: (a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''),
     },
     {
@@ -595,7 +713,7 @@ function AgendamentoManager({ userProfile }) {
     {
       title: 'Ações',
       key: 'actions',
-      width: 150,
+      width: 190,
       render: (_, record) => (
         <Space size="small">
           {record.status === 'Pendente de confirmação' && (
@@ -608,7 +726,18 @@ function AgendamentoManager({ userProfile }) {
               />
             </Tooltip>
           )}
-          {record.status !== 'Cancelado' && (
+          {record.status === 'Confirmado' && (
+            <Tooltip title="Reenviar e-mail de confirmação">
+              <Button
+                type="text"
+                aria-label={`Reenviar e-mail de confirmação para ${record.nome_completo}`}
+                icon={<MailOutlined />}
+                style={{ color: '#667eea' }}
+                onClick={() => handleReenviarEmailConfirmacao(record)}
+              />
+            </Tooltip>
+          )}
+          {!record.status?.startsWith('Cancelado') && (
             <Tooltip title="Cancelar">
               <Button
                 type="text"
@@ -618,14 +747,11 @@ function AgendamentoManager({ userProfile }) {
               />
             </Tooltip>
           )}
-          <Tooltip title="Excluir">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record)}
-            />
-          </Tooltip>
+          {record.status?.startsWith('Cancelado') && (
+            <Tooltip title="Desfazer cancelamento">
+              <Button type="text" icon={<UndoOutlined />} onClick={() => restaurarAgendamento(record)} />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -739,6 +865,28 @@ function AgendamentoManager({ userProfile }) {
             <Option value="Confirmado">Confirmados</Option>
             <Option value="Cancelado">Cancelados</Option>
           </Select>
+          <Select
+            value={filterGira}
+            onChange={setFilterGira}
+            size={isMobile ? 'middle' : 'large'}
+            style={{ width: isMobile ? '100%' : 210 }}
+          >
+            <Option value="all">Gira mais recente (automática)</Option>
+            {girasDisponiveis.map(data => (
+              <Option key={data} value={data}>
+                {new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR')}
+              </Option>
+            ))}
+          </Select>
+        </Space>
+        <Space wrap style={{ marginBottom: 16 }}>
+          <Button danger disabled={!selectedRowKeys.length} onClick={cancelarSelecionados}>
+            Cancelar pendentes selecionados
+          </Button>
+          <Button icon={<InboxOutlined />} disabled={!selectedRowKeys.length} onClick={arquivarSelecionados}>
+            Arquivar selecionados
+          </Button>
+          <Text type="secondary">Arquivar preserva todo o histórico.</Text>
         </Space>
       </div>
 
@@ -755,6 +903,7 @@ function AgendamentoManager({ userProfile }) {
           columns={columns}
           dataSource={filteredAgendamentos}
           rowKey="id"
+          rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
           pagination={{
             pageSize: isMobile ? 10 : 20,
             showSizeChanger: !isMobile,
@@ -767,6 +916,29 @@ function AgendamentoManager({ userProfile }) {
           loading={modalLoading}
           scroll={{ x: isMobile ? 800 : undefined }}
           size={isMobile ? 'small' : 'default'}
+          expandable={{
+            rowExpandable: (record) => !!record.menor_de_idade,
+            expandedRowRender: (record) => (
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: 8,
+                padding: 16
+              }}>
+                <Text strong style={{ color: '#92400e', display: 'block', marginBottom: 8 }}>
+                  Dados do responsável (menor de idade)
+                </Text>
+                <Space direction="vertical" size={4}>
+                  <Text>
+                    <strong>Nome:</strong> {record.nome_responsavel || <Text type="secondary">— não informado</Text>}
+                  </Text>
+                  <Text>
+                    <strong>CPF:</strong> {record.cpf_responsavel || <Text type="secondary">— não informado</Text>}
+                  </Text>
+                </Space>
+              </div>
+            ),
+          }}
         />
       </div>
 
@@ -836,48 +1008,17 @@ function AgendamentoManager({ userProfile }) {
         )}
       </Modal>
 
-      {/* Modal de Excluir Agendamento */}
-      <Modal
-        title="Excluir Agendamento"
-        open={modalExcluirVisible}
-        onOk={confirmarExclusao}
-        onCancel={() => {
-          setModalExcluirVisible(false);
-          setAgendamentoSelecionado(null);
-        }}
-        okText="Excluir"
-        okType="danger"
-        cancelText="Cancelar"
-        confirmLoading={modalLoading}
-        width={500}
-      >
-        {agendamentoSelecionado && (
-          <div style={{ padding: '16px 0' }}>
-            <ExclamationCircleOutlined style={{ color: '#ef4444', fontSize: 24, marginBottom: 16 }} />
-            <Text style={{ display: 'block', marginBottom: 16 }}>
-              Tem certeza que deseja <strong style={{ color: '#ef4444' }}>EXCLUIR PERMANENTEMENTE</strong> o agendamento de <strong>{agendamentoSelecionado.nome_completo}</strong>?
-            </Text>
-            <Text type="danger" style={{ display: 'block', marginBottom: 16 }}>
-              ⚠️ Esta ação não pode ser desfeita!
-            </Text>
-            <div style={{ padding: 12, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
-              <div><Text type="secondary">Email:</Text> <Text>{agendamentoSelecionado.email}</Text></div>
-              <div><Text type="secondary">Telefone:</Text> <Text>{agendamentoSelecionado.telefone}</Text></div>
-              <div><Text type="secondary">Status:</Text> <Text>{agendamentoSelecionado.status}</Text></div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* Modal de Confirmação de Envio de Email */}
       <ConfirmacaoEmailModal
         visible={modalEmailVisible}
         onClose={() => {
           setModalEmailVisible(false);
           setAgendamentoParaEmail(null);
+          setEmailModalMode('send');
         }}
         agendamento={agendamentoParaEmail}
         opcaoEscolhida={opcaoEscolhidaEmail}
+        mode={emailModalMode}
       />
     </div>
   );

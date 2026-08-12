@@ -67,6 +67,7 @@ function CursoManager({ userProfile }) {
   // Filtrar cursos quando searchTerm, filters ou cursos mudarem
   useEffect(() => {
     filterCursos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, filterTipo, filterAtivo, cursos]);
 
   // Função para carregar cursos do banco

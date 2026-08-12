@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -7,16 +7,10 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (including dev dependencies for build)
-RUN npm install --silent
+RUN npm ci
 
 # Copy source code
 COPY . .
-
-# Set environment variables for build
-ARG REACT_APP_SUPABASE_URL
-ARG REACT_APP_SUPABASE_ANON_KEY
-ENV REACT_APP_SUPABASE_URL=$REACT_APP_SUPABASE_URL
-ENV REACT_APP_SUPABASE_ANON_KEY=$REACT_APP_SUPABASE_ANON_KEY
 
 # Build the app
 RUN npm run build
