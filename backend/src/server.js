@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const dataRoutes = require('./routes/data');
 const functionsRoutes = require('./routes/functions');
 const pdvRoutes = require('./routes/pdv');
+const avaliacoesRoutes = require('./routes/avaliacoes');
 
 const app = express();
 const PORT = process.env.PORT || 3010;
@@ -86,6 +87,7 @@ app.use('/api/auth', authRateLimit, authRoutes);
 app.use('/api/data', generalRateLimit, dataRoutes);
 app.use('/api/functions', generalRateLimit, functionsRoutes);
 app.use('/api/pdv', generalRateLimit, pdvRoutes);
+app.use('/api/avaliacoes', generalRateLimit, avaliacoesRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada' }));

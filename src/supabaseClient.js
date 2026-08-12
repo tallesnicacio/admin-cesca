@@ -34,6 +34,10 @@ function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+export function getAccessToken() {
+  return getToken();
+}
+
 export async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = {
@@ -43,6 +47,7 @@ export async function apiFetch(path, options = {}) {
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const payload = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }));
+  payload.status = res.status;
   if (res.status === 401 && token) {
     setStoredSession(null);
   }
@@ -196,6 +201,9 @@ const auth = {
     }
     try {
       const result = await apiFetch('/auth/session');
+      if (!result.data?.session && result.status >= 500) {
+        return { data: { session, offline: true }, error: null };
+      }
       if (!result.data?.session) {
         setStoredSession(null);
         return { data: { session: null }, error: result.error || null };
@@ -203,8 +211,9 @@ const auth = {
       setStoredSession(result.data.session);
       return result;
     } catch (error) {
-      setStoredSession(null);
-      return { data: { session: null }, error: { message: error.message } };
+      // Em modo avião, mantém a sessão local enquanto o próprio JWT ainda for válido.
+      // Uma resposta HTTP 401 continua removendo a sessão dentro de apiFetch.
+      return { data: { session, offline: true }, error: null };
     }
   },
 
@@ -274,6 +283,9 @@ const functions = {
 export const supabase = {
   auth,
   functions,
+  request(path, options = {}) {
+    return apiFetch(path, options);
+  },
   from(table) {
     return new QueryBuilder(table);
   },

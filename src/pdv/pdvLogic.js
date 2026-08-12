@@ -10,6 +10,13 @@ const quantityLimit = product => {
   return Math.min(999, Math.max(0, Number(product.estoque_disponivel)));
 };
 
+export function getEffectivePriceCentavos(product) {
+  const normal = Number(product?.preco_centavos || 0);
+  const promotional = Number(product?.preco_promocional_centavos || 0);
+  if (product?.promocao_ativa && promotional > 0 && promotional < normal) return promotional;
+  return normal;
+}
+
 export function updateCartQuantity(cart, product, delta) {
   if (!product?.id) return cart;
   const next = Math.max(0, Math.min(quantityLimit(product), (cart[product.id] || 0) + delta));
@@ -45,12 +52,19 @@ export function buildOpenCashPayload(values, products) {
   };
 }
 
-export function buildSalePayload({ requestId, cart, donation, formaPagamento }) {
+export function buildSalePayload({
+  requestId, cart, donation, formaPagamento, formaPagamentoDoacao, products,
+}) {
+  const byId = new Map((products || []).map(product => [product.id, product]));
   return {
     requestId,
-    itens: Object.entries(cart).map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
+    itens: Object.entries(cart).map(([produtoId, quantidade]) => ({
+      produtoId,
+      quantidade,
+      precoUnitarioEsperadoCentavos: getEffectivePriceCentavos(byId.get(produtoId)),
+    })),
     doacaoCentavos: donation,
     formaPagamento,
+    formaPagamentoDoacao: donation > 0 ? formaPagamentoDoacao : null,
   };
 }
-
