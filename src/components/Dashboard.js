@@ -17,6 +17,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ShopOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
 import './Dashboard.css';
@@ -36,6 +37,7 @@ const EscalasManager        = lazy(() => import('./escalas/EscalasManager'));
 const FormularioEditor      = lazy(() => import('./FormularioEditor'));
 const AlterarSenha          = lazy(() => import('./AlterarSenha'));
 const LanchoneteManager     = lazy(() => import('./lanchonete/LanchoneteManager'));
+const AvaliacaoManager      = lazy(() => import('./AvaliacaoManager'));
 
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -54,12 +56,13 @@ const MOBILE_BREAKPOINT       = 768;
 const MENU_ITEMS = [
   { key: 'agendamentos',      icon: <CalendarOutlined />,    label: 'Agendamentos' },
   { key: 'lista-confirmacao', icon: <CheckSquareOutlined />, label: 'Lista de Confirmação' },
+  { key: 'avaliacoes',        icon: <AuditOutlined />,       label: 'Avaliações', roles: ['admin', 'coordinator'] },
   { key: 'editor-quiz',       icon: <FormOutlined />,        label: 'Editor de Quiz' },
   { key: 'presenca',          icon: <CheckSquareOutlined />, label: 'Presença' },
   { key: 'escalas',           icon: <CalendarOutlined />,    label: 'Escalas' },
   { key: 'financeiro',        icon: <DollarOutlined />,      label: 'Financeiro' },
-  { key: 'lanchonete',        icon: <ShopOutlined />,        label: 'Lanchonete' },
-  { key: 'usuarios',          icon: <UserOutlined />,        label: 'Usuários' },
+  { key: 'lanchonete',        icon: <ShopOutlined />,        label: 'Lanchonete', roles: ['admin', 'coordenador_lanches'] },
+  { key: 'usuarios',          icon: <UserOutlined />,        label: 'Usuários', roles: ['admin', 'coordenador_lanches'] },
   { key: 'reports',           icon: <BarChartOutlined />,    label: 'Relatórios' },
 ];
 
@@ -118,6 +121,9 @@ function Dashboard({ session }) {
     setDrawerVisible(false);
   };
 
+  const effectiveRole = userProfile?.is_admin ? 'admin' : userProfile?.role;
+  const visibleMenuItems = MENU_ITEMS.filter(item => !item.roles || item.roles.includes(effectiveRole));
+
   // ── Sidebar Content (reutilizado no Sider e no Drawer) ───────────────────────
   const SidebarContent = ({ isCollapsed = false }) => (
     <div className="sidebar-inner">
@@ -146,7 +152,7 @@ function Dashboard({ session }) {
 
       {/* Navegação principal */}
       <nav className="sidebar-nav" role="navigation" aria-label="Menu principal">
-        {MENU_ITEMS.map(item => (
+        {visibleMenuItems.map(item => (
           <Tooltip key={item.key} title={isCollapsed ? item.label : ''} placement="right">
             <button
               className={`sidebar-nav-item ${activeTab === item.key ? 'active' : ''}`}
@@ -173,7 +179,7 @@ function Dashboard({ session }) {
             <div className="sidebar-user-info">
               <Text className="sidebar-user-name">{userProfile?.name || 'Usuário'}</Text>
               <Text className="sidebar-user-role">
-                {userProfile?.role === 'admin' ? 'Administrador' : 'Usuário'}
+                {effectiveRole === 'admin' ? 'Administrador' : effectiveRole === 'coordinator' ? 'Coordenador' : effectiveRole === 'vendedor' ? 'Vendedor' : 'Usuário'}
               </Text>
             </div>
           )}
@@ -306,9 +312,10 @@ function Dashboard({ session }) {
             {activeTab === 'editor-quiz'       && <FormularioEditor />}
             {activeTab === 'presenca'          && renderPresencaContent()}
             {activeTab === 'escalas'           && <EscalasManager userProfile={userProfile} />}
+            {activeTab === 'avaliacoes'        && ['admin', 'coordinator'].includes(effectiveRole) && <AvaliacaoManager userProfile={userProfile} />}
             {activeTab === 'financeiro'        && <FinanceiroManager userProfile={userProfile} />}
             {activeTab === 'lanchonete'        && <LanchoneteManager />}
-            {activeTab === 'usuarios'          && <UserManager />}
+            {activeTab === 'usuarios'          && <UserManager currentUserRole={effectiveRole} />}
             {activeTab === 'configuracoes'     && <Configuracoes />}
             {activeTab === 'alterar-senha'     && <AlterarSenha />}
             {activeTab === 'reports'           && <Reports />}

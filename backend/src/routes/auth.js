@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const pool = require('../db');
-const { authMiddleware, requireAdmin } = require('../middleware/auth');
+const { authMiddleware, requireUserManager } = require('../middleware/auth');
 const { readSecret } = require('../config');
 
 function htmlEscape(str) {
@@ -21,6 +21,13 @@ const router = express.Router();
 const JWT_SECRET = readSecret('JWT_SECRET');
 const JWT_EXPIRES = '7d';
 const resend = new Resend(readSecret('RESEND_API_KEY', { required: false }));
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ALL_MANAGEABLE_ROLES = new Set(['admin', 'coordinator', 'coordenador_lanches', 'vendedor', 'user']);
+const LUNCH_ROLES = new Set(['coordenador_lanches', 'vendedor']);
+
+function canManageRole(actorRole, targetRole) {
+  return actorRole === 'admin' ? ALL_MANAGEABLE_ROLES.has(targetRole) : LUNCH_ROLES.has(targetRole);
+}
 
 function makeSession(user) {
   const token = jwt.sign(
@@ -100,15 +107,32 @@ router.get('/user', authMiddleware, (req, res) => {
   });
 });
 
+// GET /api/auth/users — administradores veem todos; coordenação vê somente a equipe da lanchonete.
+router.get('/users', authMiddleware, requireUserManager, async (req, res) => {
+  try {
+    const params = [];
+    const where = req.user.role === 'admin' ? '' : `WHERE role IN ('coordenador_lanches', 'vendedor')`;
+    const { rows } = await pool.query(
+      `SELECT id, email, name, role, is_admin, is_active, active, created_at, updated_at
+         FROM profiles ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json({ data: rows, error: null });
+  } catch (err) {
+    console.error('Erro ao listar usuários:', err);
+    res.status(500).json({ error: 'Erro interno ao listar usuários' });
+  }
+});
+
 // POST /api/auth/signup — cria usuário e envia convite por email
-router.post('/signup', authMiddleware, requireAdmin, async (req, res) => {
+router.post('/signup', authMiddleware, requireUserManager, async (req, res) => {
   const { email, password, options } = req.body;
   const name = options?.data?.name || '';
   const role = options?.data?.role || 'user';
   const emailRedirectTo = options?.emailRedirectTo || `${process.env.APP_URL}/set-password`;
 
   if (!email) return res.status(400).json({ error: 'Email obrigatório' });
-  if (!['admin', 'vendedor', 'user'].includes(role)) return res.status(400).json({ error: 'Perfil inválido' });
+  if (!canManageRole(req.user.role, role)) return res.status(403).json({ error: 'Você não pode criar usuários com este perfil' });
 
   try {
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -168,6 +192,36 @@ router.post('/signup', authMiddleware, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Erro no signup:', err);
     res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// PATCH /api/auth/users/:id — atualização limitada ao escopo do responsável.
+router.patch('/users/:id', authMiddleware, requireUserManager, async (req, res) => {
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Usuário inválido' });
+  const name = typeof req.body.name === 'string' ? req.body.name.trim().slice(0, 120) : '';
+  const role = req.body.role;
+  const hasActive = typeof req.body.isActive === 'boolean';
+  if (!name || !canManageRole(req.user.role, role)) return res.status(403).json({ error: 'Alteração fora das suas permissões' });
+  try {
+    const { rows: currentRows } = await pool.query('SELECT id, role FROM profiles WHERE id = $1', [req.params.id]);
+    const current = currentRows[0];
+    if (!current) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (req.user.role !== 'admin' && !LUNCH_ROLES.has(current.role)) {
+      return res.status(403).json({ error: 'Você só pode gerenciar usuários da lanchonete' });
+    }
+    const { rows } = await pool.query(
+      `UPDATE profiles
+          SET name = $1, role = $2, is_admin = ($2 = 'admin'),
+              is_active = CASE WHEN $3 THEN $4 ELSE is_active END,
+              active = CASE WHEN $3 THEN $4 ELSE active END,
+              updated_at = NOW()
+        WHERE id = $5 RETURNING id, email, name, role, is_admin, is_active, active, created_at, updated_at`,
+      [name, role, hasActive, req.body.isActive, req.params.id]
+    );
+    res.json({ data: rows[0], error: null });
+  } catch (err) {
+    console.error('Erro ao atualizar usuário:', err);
+    res.status(500).json({ error: 'Erro interno ao atualizar usuário' });
   }
 });
 

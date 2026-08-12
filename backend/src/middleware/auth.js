@@ -52,6 +52,8 @@ function requireRoles(...roles) {
 }
 
 const requireAdmin = requireRoles('admin');
-const requirePdvAccess = requireRoles('admin', 'vendedor');
+const requirePdvAccess = requireRoles('admin', 'vendedor', 'coordenador_lanches');
+const requirePdvSupervisor = requireRoles('admin', 'coordenador_lanches');
+const requireUserManager = requireRoles('admin', 'coordenador_lanches');
 
-module.exports = { authMiddleware, requireRoles, requireAdmin, requirePdvAccess };
+module.exports = { authMiddleware, requireRoles, requireAdmin, requirePdvAccess, requirePdvSupervisor, requireUserManager };
