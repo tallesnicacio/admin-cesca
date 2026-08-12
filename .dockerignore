@@ -3,7 +3,6 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 yarn.lock
 
 # Git
@@ -24,7 +23,7 @@ docs/
 .env.production.local
 
 # Build output
-build
+# build  # Comentado para permitir COPY build/ no Dockerfile.production
 dist
 .next
 out

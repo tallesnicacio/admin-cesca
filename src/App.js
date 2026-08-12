@@ -7,6 +7,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import SetPassword from './components/SetPassword';
 import AuthCallback from './components/AuthCallback';
+import PdvApp from './pdv/PdvApp';
 import './App.css';
 
 function AppContent() {
@@ -85,6 +86,8 @@ function AppContent() {
 }
 
 function App() {
+  const isPdv = window.location.hostname === 'pdv.cesca.digital'
+    || import.meta.env.VITE_APP_MODE === 'pdv';
   return (
     <ConfigProvider
       locale={ptBR}
@@ -139,7 +142,7 @@ function App() {
     >
       <AntApp>
         <Router>
-          <AppContent />
+          {isPdv ? <PdvApp /> : <AppContent />}
         </Router>
       </AntApp>
     </ConfigProvider>

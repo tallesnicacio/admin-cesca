@@ -39,19 +39,25 @@ export const sendConfirmationEmail = async (agendamentoId, opcaoEscolhida = 'pri
       throw error;
     }
 
-    logger.log('✅ Email enviado com sucesso:', data);
+    const responseData = data?.data || data;
+
+    logger.log('✅ Email enviado com sucesso:', responseData);
 
     return {
       success: true,
-      message: data.message || 'Email enviado com sucesso',
-      emailId: data.emailId
+      message: responseData?.message || 'Email enviado com sucesso',
+      emailId: responseData?.emailId
     };
 
   } catch (error) {
+    const errorMessage = typeof error === 'string'
+      ? error
+      : error?.message || 'Erro ao enviar email';
+
     logger.error('❌ Erro ao enviar email:', error);
     return {
       success: false,
-      error: error.message || 'Erro ao enviar email'
+      error: errorMessage
     };
   }
 };

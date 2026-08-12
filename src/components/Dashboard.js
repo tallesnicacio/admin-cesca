@@ -1,5 +1,5 @@
 import React, { useState, lazy, Suspense } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Space, Typography, Badge, Drawer, Button, message, Spin } from 'antd';
+import { Layout, Avatar, Typography, Drawer, Button, message, Spin, Tooltip } from 'antd';
 import logger from '../utils/logger';
 import {
   CalendarOutlined,
@@ -11,52 +11,82 @@ import {
   BellOutlined,
   CheckSquareOutlined,
   DollarOutlined,
-  CalendarTwoTone,
   MenuOutlined,
   FormOutlined,
   LockOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ShopOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { supabase } from '../supabaseClient';
+import './Dashboard.css';
 
 // Lazy loading de componentes para reduzir bundle inicial
-const AgendamentoManager = lazy(() => import('./AgendamentoManager'));
-const Configuracoes = lazy(() => import('./Configuracoes'));
-const Reports = lazy(() => import('./Reports'));
-const UserManager = lazy(() => import('./UserManager'));
-const TrabalhadorManager = lazy(() => import('./TrabalhadorManager'));
-const PresencaManager = lazy(() => import('./PresencaManager'));
-const PresencaReports = lazy(() => import('./PresencaReports'));
-const AdvertenciaManager = lazy(() => import('./AdvertenciaManager'));
-const FinanceiroManager = lazy(() => import('./financeiro/FinanceiroManager'));
-const EscalasManager = lazy(() => import('./escalas/EscalasManager'));
-const FormularioEditor = lazy(() => import('./FormularioEditor'));
-const AlterarSenha = lazy(() => import('./AlterarSenha'));
+const AgendamentoManager    = lazy(() => import('./AgendamentoManager'));
+const ListaConfirmacaoPresenca = lazy(() => import('./ListaConfirmacaoPresenca'));
+const Configuracoes         = lazy(() => import('./Configuracoes'));
+const Reports               = lazy(() => import('./Reports'));
+const UserManager           = lazy(() => import('./UserManager'));
+const TrabalhadorManager    = lazy(() => import('./TrabalhadorManager'));
+const PresencaManager       = lazy(() => import('./PresencaManager'));
+const PresencaReports       = lazy(() => import('./PresencaReports'));
+const AdvertenciaManager    = lazy(() => import('./AdvertenciaManager'));
+const FinanceiroManager     = lazy(() => import('./financeiro/FinanceiroManager'));
+const EscalasManager        = lazy(() => import('./escalas/EscalasManager'));
+const FormularioEditor      = lazy(() => import('./FormularioEditor'));
+const AlterarSenha          = lazy(() => import('./AlterarSenha'));
+const LanchoneteManager     = lazy(() => import('./lanchonete/LanchoneteManager'));
+const AvaliacaoManager      = lazy(() => import('./AvaliacaoManager'));
 
-// Componente de loading
 const LoadingFallback = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '400px'
-  }}>
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
     <Spin size="large" tip="Carregando..." />
   </div>
 );
 
-const { Header, Content } = Layout;
+const { Sider, Content } = Layout;
 const { Text } = Typography;
 
+const SIDEBAR_WIDTH           = 240;
+const SIDEBAR_COLLAPSED_WIDTH = 68;
+const MOBILE_BREAKPOINT       = 768;
+
+// Items do menu principal
+const MENU_ITEMS = [
+  { key: 'agendamentos',      icon: <CalendarOutlined />,    label: 'Agendamentos' },
+  { key: 'lista-confirmacao', icon: <CheckSquareOutlined />, label: 'Lista de Confirmação' },
+  { key: 'avaliacoes',        icon: <AuditOutlined />,       label: 'Avaliações', roles: ['admin', 'coordinator'] },
+  { key: 'editor-quiz',       icon: <FormOutlined />,        label: 'Editor de Quiz' },
+  { key: 'presenca',          icon: <CheckSquareOutlined />, label: 'Presença' },
+  { key: 'escalas',           icon: <CalendarOutlined />,    label: 'Escalas' },
+  { key: 'financeiro',        icon: <DollarOutlined />,      label: 'Financeiro' },
+  { key: 'lanchonete',        icon: <ShopOutlined />,        label: 'Lanchonete', roles: ['admin', 'coordenador_lanches'] },
+  { key: 'usuarios',          icon: <UserOutlined />,        label: 'Usuários', roles: ['admin', 'coordenador_lanches'] },
+  { key: 'reports',           icon: <BarChartOutlined />,    label: 'Relatórios' },
+];
+
+// Sub-itens da seção Presença
+const PRESENCA_ITEMS = [
+  { key: 'trabalhadores', icon: <TeamOutlined />,       label: 'Trabalhadores' },
+  { key: 'presenca',      icon: <CheckSquareOutlined />, label: 'Registrar' },
+  { key: 'advertencias',  icon: <BellOutlined />,        label: 'Advertências' },
+  { key: 'relatorios',    icon: <BarChartOutlined />,    label: 'Relatórios' },
+];
+
 function Dashboard({ session }) {
-  const [activeTab, setActiveTab] = useState('agendamentos');
+  const [activeTab,      setActiveTab]      = useState('agendamentos');
   const [presencaSubTab, setPresencaSubTab] = useState('trabalhadores');
-  const [userProfile, setUserProfile] = useState(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [userProfile,    setUserProfile]    = useState(null);
+  const [drawerVisible,  setDrawerVisible]  = useState(false);
+  const [collapsed,      setCollapsed]      = useState(false);
+  const [isMobile,       setIsMobile]       = useState(window.innerWidth < MOBILE_BREAKPOINT);
 
   React.useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT;
+      setIsMobile(mobile);
+      if (mobile) setDrawerVisible(false);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -74,12 +104,11 @@ function Dashboard({ session }) {
         .select('*')
         .eq('id', session.user.id)
         .single();
-
       if (error) throw error;
       setUserProfile(data);
     } catch (error) {
       logger.error('Erro ao carregar perfil:', error);
-      message.error('Não foi possível carregar o perfil do usuário. Por favor, recarregue a página.');
+      message.error('Não foi possível carregar o perfil do usuário.');
     }
   };
 
@@ -87,275 +116,213 @@ function Dashboard({ session }) {
     await supabase.auth.signOut();
   };
 
-  const menuItems = [
-    {
-      key: 'agendamentos',
-      icon: <CalendarOutlined style={{ fontSize: 16 }} />,
-      label: 'Agendamentos',
-    },
-    {
-      key: 'editor-quiz',
-      icon: <FormOutlined style={{ fontSize: 16 }} />,
-      label: 'Editor de Quiz',
-    },
-    {
-      key: 'presenca',
-      icon: <CheckSquareOutlined style={{ fontSize: 16 }} />,
-      label: 'Presença',
-    },
-    {
-      key: 'escalas',
-      icon: <CalendarTwoTone style={{ fontSize: 16 }} />,
-      label: 'Escalas',
-    },
-    {
-      key: 'financeiro',
-      icon: <DollarOutlined style={{ fontSize: 16 }} />,
-      label: 'Financeiro',
-    },
-    {
-      key: 'usuarios',
-      icon: <UserOutlined style={{ fontSize: 16 }} />,
-      label: 'Usuários',
-    },
-    {
-      key: 'reports',
-      icon: <BarChartOutlined style={{ fontSize: 16 }} />,
-      label: 'Relatórios',
-    },
-  ];
-
-  const userMenuItems = [
-    {
-      key: 'alterar-senha',
-      icon: <LockOutlined />,
-      label: 'Alterar Senha',
-      onClick: () => setActiveTab('alterar-senha'),
-    },
-    {
-      key: 'configuracoes',
-      icon: <SettingOutlined />,
-      label: 'Configurações',
-      onClick: () => setActiveTab('configuracoes'),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Sair',
-      onClick: handleLogout,
-      danger: true,
-    },
-  ];
-
-  const handleMenuClick = ({ key }) => {
+  const navigate = (key) => {
     setActiveTab(key);
-    setDrawerVisible(false); // Fecha o drawer ao selecionar
+    setDrawerVisible(false);
   };
 
-  const renderPresencaContent = () => {
-    const items = [
-      {
-        key: 'trabalhadores',
-        label: 'Trabalhadores',
-        icon: <TeamOutlined />,
-      },
-      {
-        key: 'presenca',
-        label: 'Registrar',
-        icon: <CheckSquareOutlined />,
-      },
-      {
-        key: 'advertencias',
-        label: 'Advertências',
-        icon: <BellOutlined />,
-      },
-      {
-        key: 'relatorios',
-        label: 'Relatórios',
-        icon: <BarChartOutlined />,
-      },
-    ];
+  const effectiveRole = userProfile?.is_admin ? 'admin' : userProfile?.role;
+  const visibleMenuItems = MENU_ITEMS.filter(item => !item.roles || item.roles.includes(effectiveRole));
 
-    return (
-      <>
-        <Menu
-          mode={isMobile ? 'vertical' : 'horizontal'}
-          selectedKeys={[presencaSubTab]}
-          items={items}
-          onClick={({ key }) => setPresencaSubTab(key)}
-          style={{
-            marginBottom: isMobile ? 16 : 32,
-            borderBottom: isMobile ? 'none' : '1px solid #f0f0f0',
-            background: isMobile ? '#fafafa' : 'transparent',
-            fontSize: isMobile ? 13 : 14,
-            fontWeight: 500,
-            borderRadius: isMobile ? 12 : 0,
-            padding: isMobile ? 8 : 0,
-            border: isMobile ? '1px solid #f0f0f0' : 'none',
-          }}
-        />
-        {presencaSubTab === 'trabalhadores' && <TrabalhadorManager />}
-        {presencaSubTab === 'presenca' && <PresencaManager userProfile={userProfile} />}
-        {presencaSubTab === 'advertencias' && <AdvertenciaManager userProfile={userProfile} />}
-        {presencaSubTab === 'relatorios' && <PresencaReports />}
-      </>
-    );
-  };
+  // ── Sidebar Content (reutilizado no Sider e no Drawer) ───────────────────────
+  const SidebarContent = ({ isCollapsed = false }) => (
+    <div className="sidebar-inner">
 
-  return (
-    <Layout style={{ minHeight: '100vh', background: '#fafafa' }}>
-      <Header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 1000,
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
-          padding: isMobile ? '0 16px' : '0 32px',
-          height: isMobile ? 56 : 64,
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 48, flex: 1 }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                width: isMobile ? 28 : 32,
-                height: isMobile ? 28 : 32,
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: isMobile ? 14 : 16,
-                fontWeight: 700,
-                color: '#fff',
-              }}
-            >
-              C
-            </div>
-            {!isMobile && (
-              <Text
-                strong
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  letterSpacing: '-0.5px',
-                }}
-              >
-                Admin CESCA
-              </Text>
-            )}
+      {/* Logo / Brand */}
+      <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
+        <img src="/logo-cesca.jpeg" alt="CESCA" className="sidebar-logo-img" />
+        {!isCollapsed && (
+          <div className="sidebar-brand-text">
+            <span className="sidebar-brand-name">Admin CESCA</span>
+            <span className="sidebar-brand-sub">Centro Espírita</span>
           </div>
+        )}
+        {!isMobile && (
+          <Tooltip title={isCollapsed ? 'Expandir' : 'Recolher'} placement="right">
+            <button
+              className="sidebar-toggle-btn"
+              onClick={() => setCollapsed(c => !c)}
+              aria-label={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {isCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </button>
+          </Tooltip>
+        )}
+      </div>
 
-          {/* Menu Desktop */}
-          {!isMobile && (
-            <Menu
-              mode="horizontal"
-              selectedKeys={[activeTab]}
-              items={menuItems}
-              onClick={handleMenuClick}
-              style={{
-                flex: 1,
-                border: 'none',
-                background: 'transparent',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            />
+      {/* Navegação principal */}
+      <nav className="sidebar-nav" role="navigation" aria-label="Menu principal">
+        {visibleMenuItems.map(item => (
+          <Tooltip key={item.key} title={isCollapsed ? item.label : ''} placement="right">
+            <button
+              className={`sidebar-nav-item ${activeTab === item.key ? 'active' : ''}`}
+              onClick={() => navigate(item.key)}
+              aria-current={activeTab === item.key ? 'page' : undefined}
+            >
+              <span className="sidebar-nav-icon">{item.icon}</span>
+              {!isCollapsed && <span className="sidebar-nav-label">{item.label}</span>}
+            </button>
+          </Tooltip>
+        ))}
+      </nav>
+
+      {/* Rodapé: usuário + ações */}
+      <div className="sidebar-footer">
+        {/* Info do usuário */}
+        <div className={`sidebar-user ${isCollapsed ? 'collapsed' : ''}`}>
+          <Avatar
+            style={{ backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff', flexShrink: 0 }}
+            icon={<UserOutlined />}
+            size={36}
+          />
+          {!isCollapsed && (
+            <div className="sidebar-user-info">
+              <Text className="sidebar-user-name">{userProfile?.name || 'Usuário'}</Text>
+              <Text className="sidebar-user-role">
+                {effectiveRole === 'admin' ? 'Administrador' : effectiveRole === 'coordinator' ? 'Coordenador' : effectiveRole === 'vendedor' ? 'Vendedor' : 'Usuário'}
+              </Text>
+            </div>
           )}
         </div>
 
-        {/* Right side */}
-        <Space size={isMobile ? 12 : 24}>
-          {!isMobile && (
-            <Badge count={0} showZero={false}>
-              <BellOutlined style={{ fontSize: 20, color: '#666', cursor: 'pointer' }} />
-            </Badge>
-          )}
+        {/* Ações do usuário */}
+        <div className="sidebar-actions">
+          <Tooltip title={isCollapsed ? 'Configurações' : ''} placement="right">
+            <button
+              className={`sidebar-action-btn ${activeTab === 'configuracoes' ? 'active' : ''}`}
+              onClick={() => navigate('configuracoes')}
+            >
+              <SettingOutlined />
+              {!isCollapsed && <span>Configurações</span>}
+            </button>
+          </Tooltip>
+          <Tooltip title={isCollapsed ? 'Alterar Senha' : ''} placement="right">
+            <button
+              className={`sidebar-action-btn ${activeTab === 'alterar-senha' ? 'active' : ''}`}
+              onClick={() => navigate('alterar-senha')}
+            >
+              <LockOutlined />
+              {!isCollapsed && <span>Alterar Senha</span>}
+            </button>
+          </Tooltip>
+          <Tooltip title={isCollapsed ? 'Sair' : ''} placement="right">
+            <button className="sidebar-action-btn danger" onClick={handleLogout}>
+              <LogoutOutlined />
+              {!isCollapsed && <span>Sair</span>}
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+    </div>
+  );
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar
-                style={{ backgroundColor: '#667eea' }}
-                icon={<UserOutlined />}
-                size={isMobile ? 32 : 36}
-              />
-              {!isMobile && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <Text strong style={{ fontSize: 14, lineHeight: 1.2 }}>
-                    {userProfile?.name || 'Usuário'}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.2 }}>
-                    {userProfile?.role === 'admin' ? 'Administrador' : 'Usuário'}
-                  </Text>
-                </div>
-              )}
-            </Space>
-          </Dropdown>
+  // ── Sub-tabs da seção Presença ───────────────────────────────────────────────
+  const renderPresencaContent = () => (
+    <>
+      <div className="presenca-subtabs" role="tablist">
+        {PRESENCA_ITEMS.map(item => (
+          <button
+            key={item.key}
+            role="tab"
+            aria-selected={presencaSubTab === item.key}
+            className={`presenca-subtab-btn ${presencaSubTab === item.key ? 'active' : ''}`}
+            onClick={() => setPresencaSubTab(item.key)}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+      {presencaSubTab === 'trabalhadores' && <TrabalhadorManager />}
+      {presencaSubTab === 'presenca'      && <PresencaManager userProfile={userProfile} />}
+      {presencaSubTab === 'advertencias'  && <AdvertenciaManager userProfile={userProfile} />}
+      {presencaSubTab === 'relatorios'    && <PresencaReports />}
+    </>
+  );
 
-          {/* Menu Mobile */}
-          {isMobile && (
+  const currentSidebarWidth = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
+
+  return (
+    <Layout style={{ minHeight: '100vh', background: '#f5f7fa' }}>
+
+      {/* ── Sidebar Desktop ────────────────────────────────────────────────────── */}
+      {!isMobile && (
+        <Sider
+          width={SIDEBAR_WIDTH}
+          collapsedWidth={SIDEBAR_COLLAPSED_WIDTH}
+          collapsed={collapsed}
+          trigger={null}
+          className="app-sider"
+          style={{ position: 'fixed', height: '100vh', left: 0, top: 0, zIndex: 100, overflow: 'hidden' }}
+        >
+          <SidebarContent isCollapsed={collapsed} />
+        </Sider>
+      )}
+
+      {/* ── Drawer Mobile ──────────────────────────────────────────────────────── */}
+      <Drawer
+        placement="left"
+        open={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        width={`min(${SIDEBAR_WIDTH}px, 88vw)`}
+        styles={{
+          body:    { padding: 0, background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)' },
+          header:  { display: 'none' },
+          wrapper: { boxShadow: 'none' },
+        }}
+      >
+        <SidebarContent isCollapsed={false} />
+      </Drawer>
+
+      {/* ── Área Principal ─────────────────────────────────────────────────────── */}
+      <Layout
+        style={{
+          marginLeft:  isMobile ? 0 : currentSidebarWidth,
+          transition:  'margin-left 0.2s ease',
+          minHeight:   '100vh',
+          background:  '#f5f7fa',
+        }}
+      >
+        {/* Top bar mobile */}
+        {isMobile && (
+          <div className="mobile-topbar">
             <Button
               type="text"
               icon={<MenuOutlined style={{ fontSize: 20 }} />}
               onClick={() => setDrawerVisible(true)}
-              style={{ padding: '4px 8px' }}
+              aria-label="Abrir menu"
             />
-          )}
-        </Space>
-      </Header>
+            <div className="mobile-topbar-brand">
+              <img src="/logo-cesca.jpeg" alt="CESCA" className="mobile-logo-img" />
+              <Text strong style={{ fontSize: 16, color: '#222' }}>Admin CESCA</Text>
+            </div>
+            <Avatar
+              style={{ backgroundColor: '#667eea', flexShrink: 0 }}
+              icon={<UserOutlined />}
+              size={32}
+            />
+          </div>
+        )}
 
-      {/* Drawer Mobile Menu */}
-      <Drawer
-        title="Menu"
-        placement="left"
-        onClose={() => setDrawerVisible(false)}
-        open={drawerVisible}
-        width={280}
-        styles={{ body: { padding: 0 } }}
-      >
-        <Menu
-          mode="vertical"
-          selectedKeys={[activeTab]}
-          items={menuItems}
-          onClick={handleMenuClick}
-          style={{
-            border: 'none',
-            fontSize: 15,
-            fontWeight: 500,
-          }}
-        />
-      </Drawer>
+        {/* Conteúdo da página */}
+        <Content className="main-content">
+          <Suspense fallback={<LoadingFallback />}>
+            {activeTab === 'agendamentos'      && <AgendamentoManager userProfile={userProfile} />}
+            {activeTab === 'lista-confirmacao' && <ListaConfirmacaoPresenca userProfile={userProfile} />}
+            {activeTab === 'editor-quiz'       && <FormularioEditor />}
+            {activeTab === 'presenca'          && renderPresencaContent()}
+            {activeTab === 'escalas'           && <EscalasManager userProfile={userProfile} />}
+            {activeTab === 'avaliacoes'        && ['admin', 'coordinator'].includes(effectiveRole) && <AvaliacaoManager userProfile={userProfile} />}
+            {activeTab === 'financeiro'        && <FinanceiroManager userProfile={userProfile} />}
+            {activeTab === 'lanchonete'        && <LanchoneteManager />}
+            {activeTab === 'usuarios'          && <UserManager currentUserRole={effectiveRole} />}
+            {activeTab === 'configuracoes'     && <Configuracoes />}
+            {activeTab === 'alterar-senha'     && <AlterarSenha />}
+            {activeTab === 'reports'           && <Reports />}
+          </Suspense>
+        </Content>
+      </Layout>
 
-      <Content
-        style={{
-          padding: isMobile ? '16px' : '32px 48px',
-          maxWidth: 1440,
-          width: '100%',
-          margin: '0 auto',
-        }}
-      >
-        <Suspense fallback={<LoadingFallback />}>
-          {activeTab === 'agendamentos' && <AgendamentoManager userProfile={userProfile} />}
-          {activeTab === 'editor-quiz' && <FormularioEditor />}
-          {activeTab === 'presenca' && renderPresencaContent()}
-          {activeTab === 'escalas' && <EscalasManager userProfile={userProfile} />}
-          {activeTab === 'financeiro' && <FinanceiroManager userProfile={userProfile} />}
-          {activeTab === 'usuarios' && <UserManager />}
-          {activeTab === 'configuracoes' && <Configuracoes />}
-          {activeTab === 'alterar-senha' && <AlterarSenha />}
-          {activeTab === 'reports' && <Reports />}
-        </Suspense>
-      </Content>
     </Layout>
   );
 }
