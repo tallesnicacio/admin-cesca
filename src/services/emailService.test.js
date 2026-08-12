@@ -1,24 +1,24 @@
 import { supabase } from '../supabaseClient';
 import { sendConfirmationEmail } from './emailService';
 
-jest.mock('../supabaseClient', () => ({
+vi.mock('../supabaseClient', () => ({
   supabase: {
-    auth: { getSession: jest.fn() },
-    functions: { invoke: jest.fn() },
+    auth: { getSession: vi.fn() },
+    functions: { invoke: vi.fn() },
   },
 }));
 
-jest.mock('../utils/logger', () => ({
+vi.mock('../utils/logger', () => ({
   __esModule: true,
   default: {
-    log: jest.fn(),
-    error: jest.fn(),
+    log: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe('sendConfirmationEmail', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     supabase.auth.getSession.mockResolvedValue({
       data: { session: { access_token: 'token-de-teste' } },
     });

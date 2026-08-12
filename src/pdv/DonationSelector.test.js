@@ -8,7 +8,7 @@ test('atalhos de doação definem valores exatos sem acumular', () => {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
-  const onChange = jest.fn();
+  const onChange = vi.fn();
 
   act(() => root.render(<DonationSelector value={0} onChange={onChange} />));
   const twoReais = container.querySelector('[data-donation-centavos="200"]');

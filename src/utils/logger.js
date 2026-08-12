@@ -12,7 +12,7 @@
  * logger.debug('Estado atual:', state);
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = import.meta.env.DEV;
 
 const logger = {
   /**

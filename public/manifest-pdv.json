@@ -1,0 +1,26 @@
+{
+  "short_name": "PDV CESCA",
+  "name": "PDV Lanchonete CESCA",
+  "description": "Frente de caixa offline da Lanchonete CESCA",
+  "icons": [
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#3146bd",
+  "background_color": "#f4f6f8",
+  "orientation": "portrait-primary"
+}
