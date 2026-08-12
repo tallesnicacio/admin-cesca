@@ -91,7 +91,10 @@ O estado sem avaliações torna este o momento mais seguro para corrigir a ident
 - As migrations recuperadas foram aplicadas duas vezes com sucesso em PostgreSQL 16 descartável.
 - Paridade do schema recuperado: 131 colunas, 77 constraints e 30 índices, sem faltas ou sobras em relação ao inventário de produção.
 - Teste integrado backend aprovado: fluxo diário, RBAC, idempotência e fechamento.
-- Auditoria de dependências: frontend com 63 vulnerabilidades (11 baixas, 16 moderadas, 32 altas e 4 críticas); backend com 1 alta. Não foi aplicado `audit fix` automático.
+- Dependências compatíveis foram atualizadas sem `--force`: backend passou de 1 alta para zero vulnerabilidades.
+- Frontend passou de 63 vulnerabilidades (4 críticas) para 28 (9 baixas, 5 moderadas e 14 altas), sem vulnerabilidade crítica.
+- `jspdf` foi atualizado para 4.2.1 e SheetJS para o pacote oficial 0.20.3; exportações sintéticas PDF/XLSX e o build de produção foram aprovados.
+- As 14 altas restantes pertencem à cadeia legada do `react-scripts` 5. Eliminá-las requer migração separada do toolchain (por exemplo, para Vite), não um `audit fix --force` destrutivo.
 
 ## Limites
 
@@ -100,5 +103,5 @@ Esta branch representa a melhor reconstrução verificável da fonte implantada.
 Nenhum deploy deve partir desta branch antes de:
 
 1. revisão do diff recuperado;
-2. correção ou aceitação explícita das vulnerabilidades;
+2. aceite temporário do risco de build do `react-scripts` ou migração do toolchain;
 3. aprovação humana para publicação.
